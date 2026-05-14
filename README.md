@@ -86,6 +86,13 @@ python3 examples/telegram_bot_example.py
 # Send /start to your bot on Telegram
 ```
 
+**5. Web管理界面 / Web Admin UI**
+```bash
+python3 examples/web_ui_server.py
+# Open http://localhost:8081/agent_web_ui.html in browser
+# Features: Dashboard, Agent settings, Tasks, Chat, Monitoring, Settings
+```
+
 ---
 
 ## 使用方法 / Usage
@@ -336,6 +343,8 @@ multi_agent_system/
 | 模块 | 说明 |
 |------|------|
 | telegram_bot.py | Telegram机器人 |
+| web_ui.py | Web管理界面 |
+| service_mesh.py | 服务网格 |
 
 ---
 
