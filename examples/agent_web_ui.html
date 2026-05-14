@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Agent System - 管理界面</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --success: #16a34a;
+            --warning: #f59e0b;
+            --danger: #dc2626;
+            --bg: #0f172a;
+            --bg-light: #1e293b;
+            --bg-card: #334155;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #475569;
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+        .sidebar { position: fixed; left: 0; top: 0; width: 240px; height: 100vh; background: var(--bg-light); border-right: 1px solid var(--border); padding: 20px; display: flex; flex-direction: column; }
+        .logo { font-size: 20px; font-weight: 700; color: var(--primary); margin-bottom: 30px; padding: 10px; }
+        .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; color: var(--text-muted); cursor: pointer; border-radius: 8px; margin-bottom: 4px; transition: all 0.2s; }
+        .nav-item:hover, .nav-item.active { background: var(--bg-card); color: var(--text); }
+        .nav-item.active { background: var(--primary); color: white; }
+        .nav-icon { width: 20px; text-align: center; }
+        .main { margin-left: 240px; padding: 30px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        h1 { font-size: 28px; font-weight: 600; }
+        .card { background: var(--bg-light); border-radius: 12px; padding: 24px; margin-bottom: 20px; border: 1px solid var(--border); }
+        .card-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; color: var(--text-muted); }
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 30px; }
+        .stat-card { background: var(--bg-light); border-radius: 12px; padding: 20px; border: 1px solid var(--border); }
+        .stat-value { font-size: 32px; font-weight: 700; color: var(--primary); }
+        .stat-label { font-size: 14px; color: var(--text-muted); margin-top: 4px; }
+        .stat-card.success .stat-value { color: var(--success); }
+        .stat-card.warning .stat-value { color: var(--warning); }
+        .stat-card.danger .stat-value { color: var(--danger); }
+        .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-secondary { background: var(--bg-card); color: var(--text); }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { font-weight: 600; color: var(--text-muted); font-size: 12px; text-transform: uppercase; }
+        .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+        .badge-success { background: rgba(22, 163, 74, 0.2); color: var(--success); }
+        .badge-warning { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
+        .badge-danger { background: rgba(220, 38, 38, 0.2); color: var(--danger); }
+        .badge-primary { background: rgba(37, 99, 235, 0.2); color: var(--primary); }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 8px; color: var(--text-muted); }
+        input, select, textarea { width: 100%; padding: 12px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 14px; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); }
+        textarea { min-height: 100px; resize: vertical; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center; }
+        .modal.show { display: flex; }
+        .modal-content { background: var(--bg-light); border-radius: 16px; padding: 30px; width: 500px; max-width: 90%; max-height: 90vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .modal-title { font-size: 20px; font-weight: 600; }
+        .modal-close { background: none; border: none; color: var(--text-muted); font-size: 24px; cursor: pointer; }
+        .modal-footer { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .agent-card { display: flex; align-items: center; justify-content: space-between; padding: 16px; background: var(--bg-card); border-radius: 8px; margin-bottom: 12px; }
+        .agent-info { display: flex; align-items: center; gap: 16px; }
+        .agent-avatar { width: 48px; height: 48px; border-radius: 12px; background: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; }
+        .agent-name { font-weight: 600; margin-bottom: 4px; }
+        .agent-type { font-size: 12px; color: var(--text-muted); }
+        .toggle { position: relative; width: 48px; height: 24px; }
+        .toggle input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: var(--border); border-radius: 24px; transition: 0.3s; }
+        .toggle-slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s; }
+        input:checked + .toggle-slider { background: var(--success); }
+        input:checked + .toggle-slider:before { transform: translateX(24px); }
+        .chat-container { height: 400px; border: 1px solid var(--border); border-radius: 8px; display: flex; flex-direction: column; }
+        .chat-messages { flex: 1; overflow-y: auto; padding: 16px; }
+        .chat-message { margin-bottom: 16px; padding: 12px 16px; border-radius: 12px; max-width: 80%; }
+        .chat-message.user { background: var(--primary); margin-left: auto; }
+        .chat-message.agent { background: var(--bg-card); }
+        .chat-input { display: flex; gap: 12px; padding: 16px; border-top: 1px solid var(--border); }
+        .chat-input input { flex: 1; }
+        .message-meta { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+        .settings-section { margin-bottom: 30px; }
+        .settings-section h3 { font-size: 18px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .setting-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .setting-label { font-weight: 500; }
+        .setting-desc { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+        .refresh-indicator { display: inline-flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 12px; }
+        .refresh-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">🤖 Multi-Agent</div>
+        <nav>
+            <div class="nav-item active" data-page="dashboard">
+                <span class="nav-icon">📊</span>
+                <span>仪表盘</span>
+            </div>
+            <div class="nav-item" data-page="agents">
+                <span class="nav-icon">🤖</span>
+                <span>Agent设置</span>
+            </div>
+            <div class="nav-item" data-page="tasks">
+                <span class="nav-icon">📋</span>
+                <span>任务管理</span>
+            </div>
+            <div class="nav-item" data-page="messages">
+                <span class="nav-icon">💬</span>
+                <span>消息交流</span>
+            </div>
+            <div class="nav-item" data-page="monitoring">
+                <span class="nav-icon">📈</span>
+                <span>系统监控</span>
+            </div>
+            <div class="nav-item" data-page="settings">
+                <span class="nav-icon">⚙️</span>
+                <span>系统设置</span>
+            </div>
+        </nav>
+        <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border);">
+            <div class="nav-item">
+                <span class="nav-icon">👤</span>
+                <span>管理员</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="main">
+        <!-- Dashboard Page -->
+        <div id="page-dashboard" class="tab-content active">
+            <div class="header">
+                <h1>仪表盘</h1>
+                <div class="refresh-indicator">
+                    <span class="refresh-dot"></span>
+                    <span>实时更新</span>
+                </div>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-agents">0</div>
+                    <div class="stat-label">Agent总数</div>
+                </div>
+                <div class="stat-card success">
+                    <div class="stat-value" id="stat-workers-online">0</div>
+                    <div class="stat-label">在线Worker</div>
+                </div>
+                <div class="stat-card warning">
+                    <div class="stat-value" id="stat-tasks-pending">0</div>
+                    <div class="stat-label">待处理任务</div>
+                </div>
+                <div class="stat-card danger">
+                    <div class="stat-value" id="stat-tasks-failed">0</div>
+                    <div class="stat-label">失败任务</div>
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px;">
+                <div class="card">
+                    <div class="card-title">最近任务</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>任务ID</th>
+                                <th>类型</th>
+                                <th>状态</th>
+                                <th>时间</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-tasks">
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card">
+                    <div class="card-title">系统状态</div>
+                    <div style="padding: 20px 0;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 16px;">
+                            <span>Orchestrator</span>
+                            <span class="badge badge-success">运行中</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 16px;">
+                            <span>消息队列</span>
+                            <span class="badge badge-success">正常</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 16px;">
+                            <span>Worker注册</span>
+                            <span class="badge badge-primary" id="worker-status">0/0</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>系统版本</span>
+                            <span class="badge badge-primary">v1.0.0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Agents Page -->
+        <div id="page-agents" class="tab-content">
+            <div class="header">
+                <h1>Agent设置</h1>
+                <button class="btn btn-primary" onclick="showAddAgentModal()">+ 添加Agent</button>
+            </div>
+            <div id="agent-list"></div>
+        </div>
+
+        <!-- Tasks Page -->
+        <div id="page-tasks" class="tab-content">
+            <div class="header">
+                <h1>任务管理</h1>
+                <button class="btn btn-primary" onclick="showSubmitTaskModal()">+ 提交任务</button>
+            </div>
+            <div class="card">
+                <div class="card-title">所有任务</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>任务ID</th>
+                            <th>类型</th>
+                            <th>优先级</th>
+                            <th>状态</th>
+                            <th>Worker</th>
+                            <th>创建时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="task-list">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Messages Page -->
+        <div id="page-messages" class="tab-content">
+            <div class="header">
+                <h1>消息交流</h1>
+                <button class="btn btn-secondary" onclick="clearChat()">清空</button>
+            </div>
+            <div class="card">
+                <div class="card-title">与Agent对话</div>
+                <div class="chat-container">
+                    <div class="chat-messages" id="chat-messages">
+                        <div class="chat-message agent">
+                            <div>你好！我是你的AI助手。有什么我可以帮助你的吗？</div>
+                            <div class="message-meta">系统 · 刚刚</div>
+                        </div>
+                    </div>
+                    <div class="chat-input">
+                        <input type="text" id="chat-input" placeholder="输入消息..." onkeypress="handleChatKeypress(event)">
+                        <button class="btn btn-primary" onclick="sendChatMessage()">发送</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Monitoring Page -->
+        <div id="page-monitoring" class="tab-content">
+            <div class="header">
+                <h1>系统监控</h1>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="mon-workers-total">0</div>
+                    <div class="stat-label">总Worker数</div>
+                </div>
+                <div class="stat-card success">
+                    <div class="stat-value" id="mon-workers-online">0</div>
+                    <div class="stat-label">在线</div>
+                </div>
+                <div class="stat-card warning">
+                    <div class="stat-value" id="mon-tasks-running">0</div>
+                    <div class="stat-label">运行中</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="mon-tasks-completed">0</div>
+                    <div class="stat-label">已完成</div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Worker状态</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Worker ID</th>
+                            <th>类型</th>
+                            <th>状态</th>
+                            <th>能力</th>
+                            <th>最后心跳</th>
+                        </tr>
+                    </thead>
+                    <tbody id="worker-list">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Settings Page -->
+        <div id="page-settings" class="tab-content">
+            <div class="header">
+                <h1>系统设置</h1>
+            </div>
+            <div class="card">
+                <div class="settings-section">
+                    <h3>通用设置</h3>
+                    <div class="setting-item">
+                        <div>
+                            <div class="setting-label">系统名称</div>
+                            <div class="setting-desc">显示在界面顶部的名称</div>
+                        </div>
+                        <input type="text" id="setting-name" value="Multi-Agent System" style="width: 200px;">
+                    </div>
+                    <div class="setting-item">
+                        <div>
+                            <div class="setting-label">默认超时时间</div>
+                            <div class="setting-desc">任务执行的默认超时时间(秒)</div>
+                        </div>
+                        <input type="number" id="setting-timeout" value="300" style="width: 100px;">
+                    </div>
+                    <div class="setting-item">
+                        <div>
+                            <div class="setting-label">最大并发任务数</div>
+                            <div class="setting-desc">每个Worker最大并发任务数</div>
+                        </div>
+                        <input type="number" id="setting-max-tasks" value="5" style="width: 100px;">
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <h3>消息队列</h3>
+                    <div class="setting-item">
+                        <div>
+                            <div class="setting-label">队列类型</div>
+                            <div class="setting-desc">消息队列的实现类型</div>
+                        </div>
+                        <select id="setting-queue-type" style="width: 150px;">
+                            <option value="memory">内存队列</option>
+                            <option value="redis">Redis队列</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <div>
+                            <div class="setting-label">Heartbeat间隔</div>
+                            <div class="setting-desc">Worker心跳检测间隔(秒)</div>
+                        </div>
+                        <input type="number" id="setting-heartbeat" value="30" style="width: 100px;">
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <h3>告警设置</h3>
+                    <div class="setting-item">
+                        <div>
+                            <div class="setting-label">启用告警通知</div>
+                            <div class="setting-desc">任务失败时发送告警通知</div>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" id="setting-alerts" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <div>
+                            <div class="setting-label">失败阈值</div>
+                            <div class="setting-desc">触发告警的连续失败次数</div>
+                        </div>
+                        <input type="number" id="setting-fail-threshold" value="3" style="width: 100px;">
+                    </div>
+                </div>
+                <div style="margin-top: 20px;">
+                    <button class="btn btn-primary" onclick="saveSettings()">保存设置</button>
+                    <button class="btn btn-secondary" style="margin-left: 12px;" onclick="resetSettings()">重置</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Agent Modal -->
+    <div id="modal-add-agent" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">添加Agent</h2>
+                <button class="modal-close" onclick="closeModal('modal-add-agent')">&times;</button>
+            </div>
+            <div class="form-group">
+                <label>Agent ID</label>
+                <input type="text" id="agent-id" placeholder="agent_1">
+            </div>
+            <div class="form-group">
+                <label>名称</label>
+                <input type="text" id="agent-name" placeholder="分析Agent">
+            </div>
+            <div class="form-group">
+                <label>类型</label>
+                <select id="agent-type">
+                    <option value="analysis">分析</option>
+                    <option value="research">研究</option>
+                    <option value="coding">编码</option>
+                    <option value="design">设计</option>
+                    <option value="data">数据</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>能力 (逗号分隔)</label>
+                <input type="text" id="agent-capabilities" placeholder="analysis, data">
+            </div>
+            <div class="form-group">
+                <label>最大并发任务数</label>
+                <input type="number" id="agent-max-tasks" value="3">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('modal-add-agent')">取消</button>
+                <button class="btn btn-primary" onclick="addAgent()">添加</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Submit Task Modal -->
+    <div id="modal-submit-task" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">提交任务</h2>
+                <button class="modal-close" onclick="closeModal('modal-submit-task')">&times;</button>
+            </div>
+            <div class="form-group">
+                <label>任务类型</label>
+                <select id="task-type">
+                    <option value="analysis">分析</option>
+                    <option value="research">研究</option>
+                    <option value="coding">编码</option>
+                    <option value="design">设计</option>
+                    <option value="data">数据</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>任务数据 (JSON)</label>
+                <textarea id="task-data" placeholder='{"query": "分析销售数据"}'>{}</textarea>
+            </div>
+            <div class="form-group">
+                <label>优先级 (1-5, 1最高)</label>
+                <input type="number" id="task-priority" value="2" min="1" max="5">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('modal-submit-task')">取消</button>
+                <button class="btn btn-primary" onclick="submitTask()">提交</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Navigation
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const page = item.dataset.page;
+                if (!page) return;
+
+                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                item.classList.add('active');
+
+                document.querySelectorAll('.tab-content').forEach(p => p.classList.remove('active'));
+                document.getElementById('page-' + page).classList.add('active');
+
+                if (page === 'agents') loadAgents();
+                if (page === 'tasks') loadTasks();
+                if (page === 'monitoring') loadMonitoring();
+            });
+        });
+
+        // Modal functions
+        function showAddAgentModal() { document.getElementById('modal-add-agent').classList.add('show'); }
+        function showSubmitTaskModal() { document.getElementById('modal-submit-task').classList.add('show'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+        // Agent functions
+        function loadAgents() {
+            const container = document.getElementById('agent-list');
+            const agents = getAgentsData();
+            container.innerHTML = agents.map(agent => `
+                <div class="agent-card">
+                    <div class="agent-info">
+                        <div class="agent-avatar">${agent.name[0]}</div>
+                        <div>
+                            <div class="agent-name">${agent.name}</div>
+                            <div class="agent-type">${agent.type} · ${agent.capabilities.join(', ')}</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 16px;">
+                        <label class="toggle">
+                            <input type="checkbox" ${agent.enabled ? 'checked' : ''} onchange="toggleAgent('${agent.id}', this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <button class="btn btn-danger btn-sm" onclick="deleteAgent('${agent.id}')">删除</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getAgentsData() {
+            return [
+                { id: 'worker_1', name: '分析Agent', type: 'analysis', capabilities: ['analysis'], enabled: true },
+                { id: 'worker_2', name: '研究Agent', type: 'research', capabilities: ['research'], enabled: true },
+                { id: 'worker_3', name: '编码Agent', type: 'coding', capabilities: ['coding'], enabled: true },
+                { id: 'worker_4', name: '设计Agent', type: 'design', capabilities: ['design'], enabled: false },
+                { id: 'worker_5', name: '数据Agent', type: 'data', capabilities: ['data'], enabled: true }
+            ];
+        }
+
+        function addAgent() {
+            const id = document.getElementById('agent-id').value;
+            const name = document.getElementById('agent-name').value;
+            const type = document.getElementById('agent-type').value;
+            const caps = document.getElementById('agent-capabilities').value.split(',').map(s => s.trim());
+            const maxTasks = document.getElementById('agent-max-tasks').value;
+            alert('Agent ' + name + ' 已添加!');
+            closeModal('modal-add-agent');
+            loadAgents();
+        }
+
+        function toggleAgent(id, enabled) {
+            console.log('Toggle agent:', id, enabled);
+        }
+
+        function deleteAgent(id) {
+            if (confirm('确定要删除这个Agent吗?')) {
+                alert('Agent 已删除');
+                loadAgents();
+            }
+        }
+
+        // Task functions
+        function loadTasks() {
+            const tasks = getTasksData();
+            document.getElementById('task-list').innerHTML = tasks.map(task => `
+                <tr>
+                    <td>${task.id.substring(0, 8)}...</td>
+                    <td>${task.type}</td>
+                    <td><span class="badge badge-primary">P${task.priority}</span></td>
+                    <td><span class="badge badge-${task.status === 'completed' ? 'success' : task.status === 'failed' ? 'danger' : 'warning'}">${task.status}</span></td>
+                    <td>${task.worker || '-'}</td>
+                    <td>${task.created}</td>
+                    <td><button class="btn btn-secondary btn-sm" onclick="viewTask('${task.id}')">查看</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function getTasksData() {
+            return [
+                { id: 'task_abc123', type: 'analysis', priority: 1, status: 'completed', worker: 'worker_1', created: '2分钟前' },
+                { id: 'task_def456', type: 'research', priority: 2, status: 'running', worker: 'worker_2', created: '1分钟前' },
+                { id: 'task_ghi789', type: 'coding', priority: 3, status: 'pending', worker: '-', created: '刚刚' }
+            ];
+        }
+
+        function submitTask() {
+            const type = document.getElementById('task-type').value;
+            const data = document.getElementById('task-data').value;
+            const priority = document.getElementById('task-priority').value;
+            alert('任务已提交: ' + type);
+            closeModal('modal-submit-task');
+            loadTasks();
+        }
+
+        function viewTask(id) {
+            alert('查看任务: ' + id);
+        }
+
+        // Chat functions
+        function handleChatKeypress(e) {
+            if (e.key === 'Enter') sendChatMessage();
+        }
+
+        function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if (!text) return;
+
+            const messages = document.getElementById('chat-messages');
+            messages.innerHTML += `
+                <div class="chat-message user">
+                    <div>${text}</div>
+                    <div class="message-meta">你 · 刚刚</div>
+                </div>
+            `;
+
+            input.value = '';
+            messages.scrollTop = messages.scrollHeight;
+
+            setTimeout(() => {
+                messages.innerHTML += `
+                    <div class="chat-message agent">
+                        <div>收到: "${text}" - 我会帮你处理这个任务。</div>
+                        <div class="message-meta">Agent · 刚刚</div>
+                    </div>
+                `;
+                messages.scrollTop = messages.scrollHeight;
+            }, 1000);
+        }
+
+        function clearChat() {
+            document.getElementById('chat-messages').innerHTML = `
+                <div class="chat-message agent">
+                    <div>对话已清空。有什么我可以帮助你的吗？</div>
+                    <div class="message-meta">系统 · 刚刚</div>
+                </div>
+            `;
+        }
+
+        // Settings functions
+        function saveSettings() {
+            alert('设置已保存!');
+        }
+
+        function resetSettings() {
+            document.getElementById('setting-name').value = 'Multi-Agent System';
+            document.getElementById('setting-timeout').value = '300';
+            document.getElementById('setting-max-tasks').value = '5';
+            alert('设置已重置');
+        }
+
+        // Monitoring
+        function loadMonitoring() {
+            document.getElementById('mon-workers-total').textContent = '5';
+            document.getElementById('mon-workers-online').textContent = '3';
+            document.getElementById('mon-tasks-running').textContent = '2';
+            document.getElementById('mon-tasks-completed').textContent = '156';
+
+            document.getElementById('worker-list').innerHTML = `
+                <tr><td>worker_1</td><td>Analysis</td><td><span class="badge badge-success">在线</span></td><td>analysis</td><td>10秒前</td></tr>
+                <tr><td>worker_2</td><td>Research</td><td><span class="badge badge-success">在线</span></td><td>research</td><td>5秒前</td></tr>
+                <tr><td>worker_3</td><td>Coding</td><td><span class="badge badge-success">在线</span></td><td>coding</td><td>8秒前</td></tr>
+                <tr><td>worker_4</td><td>Design</td><td><span class="badge badge-danger">离线</span></td><td>design</td><td>5分钟前</td></tr>
+                <tr><td>worker_5</td><td>Data</td><td><span class="badge badge-success">在线</span></td><td>data</td><td>3秒前</td></tr>
+            `;
+        }
+
+        // Initial load
+        function loadDashboard() {
+            document.getElementById('stat-agents').textContent = '5';
+            document.getElementById('stat-workers-online').textContent = '3';
+            document.getElementById('stat-tasks-pending').textContent = '2';
+            document.getElementById('stat-tasks-failed').textContent = '1';
+            document.getElementById('worker-status').textContent = '3/5';
+
+            document.getElementById('recent-tasks').innerHTML = `
+                <tr><td>task_abc...</td><td>analysis</td><td><span class="badge badge-success">完成</span></td><td>刚刚</td></tr>
+                <tr><td>task_def...</td><td>research</td><td><span class="badge badge-warning">进行中</span></td><td>1分钟前</td></tr>
+                <tr><td>task_ghi...</td><td>coding</td><td><span class="badge badge-primary">待处理</span></td><td>2分钟前</td></tr>
+            `;
+        }
+
+        loadDashboard();
+        setInterval(loadDashboard, 30000);
+    </script>
+</body>
+</html>
