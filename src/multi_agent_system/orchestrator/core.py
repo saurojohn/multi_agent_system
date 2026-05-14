@@ -55,6 +55,9 @@ class WorkerInfo:
     last_heartbeat: float = field(default_factory=time.time)
     completed_tasks: int = 0
     failed_tasks: int = 0
+    tags: List[str] = field(default_factory=list)  # e.g., ["high-memory", "gpu", "critical"]
+    groups: List[str] = field(default_factory=list)  # e.g., ["analysis-team", "production"]
+    metadata: Dict = field(default_factory=dict)  # custom metadata
 
 
 class Orchestrator:
@@ -227,14 +230,20 @@ class Orchestrator:
         payload = msg.payload
         worker_id = payload["worker_id"]
         capabilities = payload.get("capabilities", [])
-        logger.info(f'Worker registered: {worker_id} with capabilities {capabilities}')
+        tags = payload.get("tags", [])
+        groups = payload.get("groups", [])
+        metadata = payload.get("metadata", {})
+        logger.info(f'Worker registered: {worker_id} with capabilities {capabilities}, tags={tags}, groups={groups}')
 
         worker_info = WorkerInfo(
             worker_id=worker_id,
             worker_type=payload.get("worker_type", "general"),
             capabilities=payload.get("capabilities", []),
             max_concurrent=payload.get("max_concurrent", 1),
-            status="online"
+            status="online",
+            tags=tags,
+            groups=groups,
+            metadata=metadata
         )
         with self._lock:
             self.workers[worker_info.worker_id] = worker_info
@@ -242,7 +251,9 @@ class Orchestrator:
         self._emit_event("worker_registered", {
             "worker_id": worker_id,
             "worker_type": payload.get("worker_type", "general"),
-            "capabilities": capabilities
+            "capabilities": capabilities,
+            "tags": tags,
+            "groups": groups
         })
 
         ack = Message(
@@ -372,14 +383,30 @@ class Orchestrator:
                         logger.info(f'Scheduled task {task.task_id} to worker {worker.worker_id}')
 
     def _select_worker(self, task: Task) -> Optional[WorkerInfo]:
+        # Get task's required tags/groups (stored in task_data)
+        required_tags = task.task_data.get('_required_tags', [])
+        required_groups = task.task_data.get('_required_groups', [])
+
         available = [
             w for w in self.workers.values()
             if w.status in ("idle", "online") and
-               (w.capabilities is None or task.task_type in w.capabilities)
+               (w.capabilities is None or task.task_type in w.capabilities) and
+               self._worker_matches_tags(w, required_tags) and
+               self._worker_matches_groups(w, required_groups)
         ]
         if not available:
             return None
         return min(available, key=lambda w: w.completed_tasks)
+
+    def _worker_matches_tags(self, worker: WorkerInfo, required_tags: List[str]) -> bool:
+        if not required_tags:
+            return True
+        return all(tag in worker.tags for tag in required_tags)
+
+    def _worker_matches_groups(self, worker: WorkerInfo, required_groups: List[str]) -> bool:
+        if not required_groups:
+            return True
+        return all(group in worker.groups for group in required_groups)
 
     def _assign_task(self, task: Task, worker: WorkerInfo):
         task.status = "running"
