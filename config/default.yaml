@@ -1,0 +1,52 @@
+# Multi-Agent System Configuration
+# 多AI Agent协作系统配置文件
+
+server:
+  host: "localhost"
+  port: 8080
+
+orchestrator:
+  heartbeat_interval: 10  # seconds
+  heartbeat_timeout: 30    # seconds
+  max_task_retries: 3
+  scheduler_interval: 0.1  # seconds
+
+workers:
+  - worker_id: "worker_1"
+    worker_type: "Analysis"
+    capabilities:
+      - "analysis"
+    enabled: true
+
+  - worker_id: "worker_2"
+    worker_type: "Research"
+    capabilities:
+      - "research"
+    enabled: true
+
+  - worker_id: "worker_3"
+    worker_type: "Coding"
+    capabilities:
+      - "coding"
+    enabled: true
+
+  - worker_id: "worker_4"
+    worker_type: "Design"
+    capabilities:
+      - "design"
+    enabled: true
+
+  - worker_id: "worker_5"
+    worker_type: "Data"
+    capabilities:
+      - "data"
+    enabled: true
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+tasks:
+  default_timeout: 300  # seconds
+  default_priority: 2
+  max_concurrent: 100

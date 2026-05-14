@@ -1,10 +1,13 @@
 """Worker Agent - executes tasks from orchestrator."""
 
+import logging
 import threading
 import time
 from typing import Dict, Any, Optional, Callable, List
 
 from ..common.message import Message, MessageType, QueueType
+
+logger = logging.getLogger('worker')
 from ..common.queue import MessageQueueManager
 
 
@@ -58,6 +61,7 @@ class WorkerAgent:
             }
         )
         self.mq.enqueue(QueueType.WORKER_TO_ORCHESTRATOR.value, msg)
+        logger.info(f'[{self.worker_id}] Registered with capabilities: {self.capabilities}')
 
     def _unregister(self):
         msg = Message(
@@ -67,6 +71,7 @@ class WorkerAgent:
             payload={"worker_id": self.worker_id}
         )
         self.mq.enqueue(QueueType.WORKER_TO_ORCHESTRATOR.value, msg)
+        logger.info(f'[{self.worker_id}] Unregistered')
 
     def _message_listener(self):
         while self._running:
@@ -116,15 +121,18 @@ class WorkerAgent:
         error = None
         status = "completed"
 
+        logger.info(f'[{self.worker_id}] Executing task {task_id} type={task_type}')
         try:
             if handler:
                 result = handler(task_data)
             else:
                 error = f"No handler for task type: {task_type}"
                 status = "failed"
+                logger.warning(f'[{self.worker_id}] No handler for task type: {task_type}')
         except Exception as e:
             error = str(e)
             status = "failed"
+            logger.error(f'[{self.worker_id}] Task {task_id} failed: {error}')
         finally:
             with self._lock:
                 if task_id in self._active_tasks:
@@ -157,6 +165,7 @@ class WorkerAgent:
             }
         )
         self.mq.enqueue(QueueType.WORKER_TO_ORCHESTRATOR.value, msg)
+        logger.warning(f'[{self.worker_id}] Rejected task {task_id}: {reason}')
 
     def _heartbeat_sender(self):
         while self._running:

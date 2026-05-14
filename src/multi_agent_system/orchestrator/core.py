@@ -3,6 +3,7 @@
 import threading
 import time
 import uuid
+import logging
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional
@@ -10,6 +11,8 @@ from typing import Dict, List, Optional
 from ..common.message import Message, MessageType, QueueType, MessagePriority
 from ..common.queue import MessageQueueManager
 from ..common.timeout import TimeoutManager
+
+logger = logging.getLogger('orchestrator')
 
 
 class OrchestratorState(Enum):
@@ -135,6 +138,7 @@ class Orchestrator:
             correlation_id=task_id
         )
         self.mq.enqueue(QueueType.ORCHESTRATOR_TO_WORKER.value, msg)
+        logger.info(f'Task submitted: {task_id} type={task_type} target={target}')
         return task_id
 
     def _message_processor(self):
@@ -157,8 +161,12 @@ class Orchestrator:
 
     def _handle_worker_register(self, msg: Message):
         payload = msg.payload
+        worker_id = payload["worker_id"]
+        capabilities = payload.get("capabilities", [])
+        logger.info(f'Worker registered: {worker_id} with capabilities {capabilities}')
+
         worker_info = WorkerInfo(
-            worker_id=payload["worker_id"],
+            worker_id=worker_id,
             worker_type=payload.get("worker_type", "general"),
             capabilities=payload.get("capabilities", []),
             max_concurrent=payload.get("max_concurrent", 1),
@@ -179,10 +187,12 @@ class Orchestrator:
         with self._lock:
             if worker_id in self.workers:
                 self.workers[worker_id].status = "offline"
+                logger.info(f'Worker unregistered: {worker_id}')
 
     def _handle_task_result(self, msg: Message):
         task_id = msg.payload.get("task_id")
         status = msg.payload.get("status")
+        worker_id = msg.payload.get("worker_id")
         self.timeout_manager.cancel_timer(task_id)
 
         with self._lock:
@@ -196,11 +206,14 @@ class Orchestrator:
 
                     if status == "completed":
                         task.result = msg.payload.get("result")
+                        logger.info(f'Task completed: {task_id} by {worker_id}')
                         if task.assigned_worker and task.assigned_worker in self.workers:
                             worker = self.workers[task.assigned_worker]
                             worker.status = "idle"
                             worker.current_task_id = None
                         worker.completed_tasks += 1
+                    else:
+                        logger.warning(f'Task failed: {task_id} error={msg.payload.get("error")}')
                 else:
                     task.error = msg.payload.get("error")
                     if task.assigned_worker and task.assigned_worker in self.workers:
@@ -212,6 +225,7 @@ class Orchestrator:
         with self._lock:
             if worker_id in self.workers:
                 self.workers[worker_id].last_heartbeat = time.time()
+                logger.debug(f'Heartbeat received from {worker_id}')
 
     def _handle_error(self, msg: Message):
         task_id = msg.payload.get("task_id")
@@ -224,9 +238,11 @@ class Orchestrator:
                 task.retry_count += 1
 
                 if task.retry_count < self.max_task_retries:
+                    logger.info(f'Rescheduling task {task_id} (retry {task.retry_count}/{self.max_task_retries})')
                     self._reschedule_task(task)
                 else:
                     task.status = "failed"
+                    logger.error(f'Task {task_id} failed permanently after {task.retry_count} retries')
 
     def _heartbeat_monitor(self):
         while self._running:
@@ -236,6 +252,7 @@ class Orchestrator:
                     if worker.status != "offline":
                         if now - worker.last_heartbeat > self.heartbeat_timeout:
                             worker.status = "offline"
+                            logger.warning(f'Worker timed out: {worker_id}')
                             self._reassign_worker_tasks(worker_id)
             time.sleep(self.heartbeat_interval)
 
@@ -261,6 +278,7 @@ class Orchestrator:
                     worker = self._select_worker(task)
                     if worker:
                         self._assign_task(task, worker)
+                        logger.info(f'Scheduled task {task.task_id} to worker {worker.worker_id}')
 
     def _select_worker(self, task: Task) -> Optional[WorkerInfo]:
         available = [
@@ -291,6 +309,7 @@ class Orchestrator:
             target=worker.worker_id
         )
         self.mq.enqueue(QueueType.ORCHESTRATOR_TO_WORKER.value, msg)
+        logger.info(f'Task {task.task_id} assigned to {worker.worker_id}')
 
     def _reschedule_task(self, task: Task):
         task.status = "pending"
@@ -321,6 +340,7 @@ class Orchestrator:
             target=target_worker
         )
         self.mq.enqueue(QueueType.ORCHESTRATOR_TO_WORKER.value, msg)
+        logger.info(f'Task {task.task_id} rescheduled to {target_worker} (retry {task.retry_count})')
 
     def _timeout_checker(self):
         while self._running:
@@ -336,6 +356,7 @@ class Orchestrator:
                 task = self.tasks[task_id]
                 task.status = "failed"
                 task.error = "Task timeout"
+                logger.warning(f'Task timeout: {task_id}')
                 if task.assigned_worker:
                     self._reassign_worker_tasks(task.assigned_worker)
 

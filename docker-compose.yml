@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  orchestrator:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./config:/app/config:ro
+    networks:
+      - multi-agent-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Example: Add a custom worker service
+  # custom-worker:
+  #   build: .
+  #   command: python examples/worker_client.py --worker-id custom_worker_1 --capabilities analysis,research
+  #   environment:
+  #     - PYTHONUNBUFFERED=1
+  #   depends_on:
+  #     - orchestrator
+  #   networks:
+  #     - multi-agent-network
+
+networks:
+  multi-agent-network:
+    driver: bridge
