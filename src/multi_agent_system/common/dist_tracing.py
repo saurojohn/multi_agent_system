@@ -1,4 +1,4 @@
-"""Distributed tracing for request tracking across services."""
+"""Distributed tracing with OpenTelemetry compatibility."""
 
 import logging
 import threading
@@ -7,7 +7,6 @@ import uuid
 from typing import Dict, List, Optional, Any, Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from collections import defaultdict
 
 logger = logging.getLogger('tracing')
 
@@ -102,7 +101,7 @@ class Tracer:
         self._completed_traces: Dict[str, Trace] = {}
         self._lock = threading.RLock()
         self._exporters: List[Callable] = []
-        self._sampler = None  # Sampling strategy
+        self._sampler = None
 
     def start_span(self, name: str, trace_id: str = None,
                    parent_span_id: str = None,
@@ -151,7 +150,6 @@ class Tracer:
             if tags:
                 span.tags.update(tags)
 
-            # Get or create trace
             if span.trace_id not in self._completed_traces:
                 self._completed_traces[span.trace_id] = Trace(
                     trace_id=span.trace_id,
@@ -161,7 +159,6 @@ class Tracer:
 
             self._completed_traces[span.trace_id].spans.append(span)
 
-        # Export span
         self._export_span(span)
 
     def record_span_log(self, context: SpanContext, event: str,
