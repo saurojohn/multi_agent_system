@@ -75,8 +75,8 @@ python3 examples/api_server.py
 **3. 3D Dashboard / 3D可视化**
 ```bash
 python3 examples/api_server.py
-# Open /home/laodaboss/Desktop/3d_agent_office.html in browser
-# 在浏览器打开 /home/laodaboss/Desktop/3d_agent_office.html
+# Open examples/3d_agent_office.html in browser
+# 在浏览器打开 examples/3d_agent_office.html
 ```
 
 ---
