@@ -1,12 +1,27 @@
-"""Rate limiting for API endpoints."""
+"""Rate limiting for API endpoints with endpoint-specific limits."""
 
 import time
 import threading
 import logging
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 from collections import defaultdict
 
 logger = logging.getLogger('rate_limit')
+
+
+class EndpointRateLimit:
+    """Rate limit configuration for a specific endpoint."""
+
+    def __init__(self, rate: float, capacity: int, window: int = 60):
+        """
+        Args:
+            rate: Requests per window
+            capacity: Burst capacity
+            window: Time window in seconds
+        """
+        self.rate = rate
+        self.capacity = capacity
+        self.window = window
 
 
 class TokenBucket:
@@ -43,6 +58,9 @@ class TokenBucket:
         with self._lock:
             elapsed = time.time() - self._last_update
             return min(self.capacity, self._tokens + elapsed * self.rate)
+
+
+class SlidingWindowCounter:
 
 
 class SlidingWindowCounter:
@@ -144,14 +162,34 @@ class RateLimiter:
 
 
 class RateLimitMiddleware:
-    """Middleware for applying rate limits to HTTP requests."""
+    """
+    Middleware for applying endpoint-specific rate limits to HTTP requests.
+    Supports different rate limits per endpoint.
+    """
 
-    def __init__(self, global_rate: float = 1000, global_capacity: int = 2000):
+    # Default rate limits per endpoint type
+    DEFAULT_ENDPOINT_LIMITS = {
+        '/api/tasks': EndpointRateLimit(rate=50, capacity=100),     # Moderate
+        '/api/tasks/batch': EndpointRateLimit(rate=10, capacity=20),  # Lower for batch
+        '/api/workers': EndpointRateLimit(rate=30, capacity=60),
+        '/api/status': EndpointRateLimit(rate=100, capacity=200),  # Higher for status
+        '/api/metrics': EndpointRateLimit(rate=20, capacity=40),
+        '/health': EndpointRateLimit(rate=200, capacity=500),  # Higher for health
+    }
+
+    def __init__(self, global_rate: float = 1000, global_capacity: int = 2000,
+                 endpoint_limits: Dict[str, EndpointRateLimit] = None):
         self.global_limiter = TokenBucket(global_rate, global_capacity)
+        self.endpoint_limits = endpoint_limits or self.DEFAULT_ENDPOINT_LIMITS.copy()
         self.endpoint_limiters: Dict[str, TokenBucket] = {}
         self.client_limiters: Dict[str, SlidingWindowCounter] = {}
 
-    def check_request(self, client_id: str, endpoint: str) -> tuple:
+    def set_endpoint_limit(self, endpoint: str, limit: EndpointRateLimit):
+        """Set rate limit for a specific endpoint."""
+        self.endpoint_limits[endpoint] = limit
+        logger.info(f'Set endpoint limit for {endpoint}: {limit.rate} req/s')
+
+    def check_request(self, client_id: str, endpoint: str) -> Tuple[bool, str, int]:
         """
         Check if request is allowed.
         Returns: (allowed: bool, reason: str, retry_after: int)
@@ -160,12 +198,11 @@ class RateLimitMiddleware:
         if not self.global_limiter.consume(1):
             return False, "Global rate limit exceeded", 1
 
-        # Check endpoint limit
-        if endpoint not in self.endpoint_limiters:
-            self.endpoint_limiters[endpoint] = TokenBucket(100, 200)
+        # Get endpoint-specific limit
+        endpoint_limit = self._get_endpoint_limiter(endpoint)
 
-        if not self.endpoint_limiters[endpoint].consume(1):
-            return False, "Endpoint rate limit exceeded", 1
+        if not endpoint_limit.consume(1):
+            return False, f"Endpoint rate limit exceeded for {endpoint}", 1
 
         # Check client limit (60 requests per minute)
         if client_id not in self.client_limiters:
@@ -176,6 +213,26 @@ class RateLimitMiddleware:
             return False, f"Client rate limit exceeded. {available} requests remaining", 60
 
         return True, "OK", 0
+
+    def _get_endpoint_limiter(self, endpoint: str) -> TokenBucket:
+        """Get or create rate limiter for endpoint."""
+        if endpoint not in self.endpoint_limiters:
+            # Find matching limit configuration
+            limit_config = None
+            for pattern, config in self.endpoint_limits.items():
+                if endpoint.startswith(pattern):
+                    limit_config = config
+                    break
+
+            if limit_config:
+                self.endpoint_limiters[endpoint] = TokenBucket(
+                    limit_config.rate, limit_config.capacity
+                )
+            else:
+                # Use default
+                self.endpoint_limiters[endpoint] = TokenBucket(100, 200)
+
+        return self.endpoint_limiters[endpoint]
 
     def get_limit_headers(self, client_id: str, endpoint: str) -> Dict[str, str]:
         """Get rate limit headers for response."""

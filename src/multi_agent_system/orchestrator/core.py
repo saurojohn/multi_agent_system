@@ -12,6 +12,7 @@ from ..common.message import Message, MessageType, QueueType, MessagePriority
 from ..common.queue import MessageQueueManager
 from ..common.timeout import TimeoutManager
 from ..common.metrics import get_metrics
+from ..common.event_sourcing import EventStore, EventType, get_event_store, publish_event
 
 logger = logging.getLogger('orchestrator')
 
@@ -41,6 +42,7 @@ class Task:
     started_at: Optional[float] = None
     completed_at: Optional[float] = None
     retry_count: int = 0
+    sticky_worker: Optional[str] = None  # For sticky scheduling
 
 
 @dataclass
@@ -80,6 +82,8 @@ class Orchestrator:
         self.dead_letter_callback = dead_letter_callback
         self.deduplication_enabled = deduplication_enabled
         self._deduplication_keys: Dict[str, str] = {}  # task_key -> task_id
+        self._sticky_assignments: Dict[str, str] = {}  # affinity_key -> worker_id
+        self._event_store = get_event_store()
 
         self._running = False
         self._threads: List[threading.Thread] = []
@@ -131,7 +135,8 @@ class Orchestrator:
 
     def submit_task(self, task_type: str, task_data: Dict,
                     priority: int = 2, timeout: int = 300,
-                    dependencies: List[str] = None) -> str:
+                    dependencies: List[str] = None,
+                    sticky_client_id: str = None) -> str:
         task_id = str(uuid.uuid4())
         task = Task(
             task_id=task_id,
@@ -141,6 +146,17 @@ class Orchestrator:
             timeout=timeout,
             dependencies=dependencies or []
         )
+
+        # Sticky scheduling - use same worker for same client
+        if sticky_client_id:
+            affinity_key = f"{sticky_client_id}:{task_type}"
+            with self._lock:
+                if affinity_key in self._sticky_assignments:
+                    assigned_worker = self._sticky_assignments[affinity_key]
+                    # Verify worker is still available
+                    if assigned_worker in self.workers and self.workers[assigned_worker].status in ("idle", "online"):
+                        task.sticky_worker = assigned_worker
+                        logger.debug(f'Sticky assignment: {task_id} -> {assigned_worker}')
 
         # Deduplication check
         if self.deduplication_enabled:
@@ -206,6 +222,20 @@ class Orchestrator:
         )
         self.mq.enqueue(QueueType.ORCHESTRATOR_TO_WORKER.value, msg)
         logger.info(f'Task submitted: {task_id} type={task_type} target={target}')
+
+        # Publish event for event sourcing
+        publish_event(
+            event_type=EventType.TASK_SUBMITTED.value,
+            aggregate_id=task_id,
+            aggregate_type="task",
+            payload={
+                "task_type": task_type,
+                "priority": priority,
+                "target": target
+            },
+            correlation_id=task_id
+        )
+
         return task_id
 
     def _message_processor(self):
@@ -247,6 +277,19 @@ class Orchestrator:
         )
         with self._lock:
             self.workers[worker_info.worker_id] = worker_info
+
+        # Publish event for event sourcing
+        publish_event(
+            event_type=EventType.WORKER_REGISTERED.value,
+            aggregate_id=worker_id,
+            aggregate_type="worker",
+            payload={
+                "worker_type": payload.get("worker_type", "general"),
+                "capabilities": capabilities,
+                "tags": tags,
+                "groups": groups
+            }
+        )
 
         self._emit_event("worker_registered", {
             "worker_id": worker_id,
@@ -305,6 +348,19 @@ class Orchestrator:
                         if task.started_at:
                             latency = task.completed_at - task.started_at
                             get_metrics().record_task_completed(latency)
+
+                        # Publish event for event sourcing
+                        publish_event(
+                            event_type=EventType.TASK_COMPLETED.value,
+                            aggregate_id=task_id,
+                            aggregate_type="task",
+                            payload={
+                                "worker_id": worker_id,
+                                "result": task.result,
+                                "latency": task.completed_at - task.started_at if task.started_at else None
+                            },
+                            correlation_id=task_id
+                        )
                     else:
                         logger.warning(f'Task failed: {task_id} error={msg.payload.get("error")}')
                         self._emit_event("task_update", {
@@ -314,6 +370,18 @@ class Orchestrator:
                             "task_type": task.task_type
                         })
                         get_metrics().record_task_failed()
+
+                        # Publish event for event sourcing
+                        publish_event(
+                            event_type=EventType.TASK_FAILED.value,
+                            aggregate_id=task_id,
+                            aggregate_type="task",
+                            payload={
+                                "worker_id": worker_id,
+                                "error": msg.payload.get("error")
+                            },
+                            correlation_id=task_id
+                        )
                 else:
                     task.error = msg.payload.get("error")
                     if task.assigned_worker and task.assigned_worker in self.workers:
@@ -387,6 +455,15 @@ class Orchestrator:
         required_tags = task.task_data.get('_required_tags', [])
         required_groups = task.task_data.get('_required_groups', [])
 
+        # Check sticky worker first
+        if task.sticky_worker:
+            sticky_w = self.workers.get(task.sticky_worker)
+            if sticky_w and sticky_w.status in ("idle", "online"):
+                # Verify capabilities match
+                if task.task_type in sticky_w.capabilities or sticky_w.capabilities is None:
+                    logger.debug(f'Using sticky worker {task.sticky_worker} for task {task.task_id}')
+                    return sticky_w
+
         available = [
             w for w in self.workers.values()
             if w.status in ("idle", "online") and
@@ -396,7 +473,16 @@ class Orchestrator:
         ]
         if not available:
             return None
-        return min(available, key=lambda w: w.completed_tasks)
+
+        # Select worker with least completed tasks
+        selected = min(available, key=lambda w: w.completed_tasks)
+
+        # Update sticky assignment for future tasks
+        if task.sticky_worker is None:
+            affinity_key = f"{task.task_data.get('_client_id', 'default')}:{task.task_type}"
+            self._sticky_assignments[affinity_key] = selected.worker_id
+
+        return selected
 
     def _worker_matches_tags(self, worker: WorkerInfo, required_tags: List[str]) -> bool:
         if not required_tags:
