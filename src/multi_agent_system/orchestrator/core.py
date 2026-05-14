@@ -63,7 +63,8 @@ class Orchestrator:
                  heartbeat_timeout: int = 30,
                  max_task_retries: int = 3,
                  event_callback=None,
-                 dead_letter_callback=None):
+                 dead_letter_callback=None,
+                 deduplication_enabled: bool = False):
         self.mq = mq
         self.state = OrchestratorState.IDLE
         self.tasks: Dict[str, Task] = {}
@@ -73,7 +74,9 @@ class Orchestrator:
         self.max_task_retries = max_task_retries
         self.timeout_manager = TimeoutManager()
         self.event_callback = event_callback
-        self.dead_letter_callback = dead_letter_callback  # Callback for DLQ handling
+        self.dead_letter_callback = dead_letter_callback
+        self.deduplication_enabled = deduplication_enabled
+        self._deduplication_keys: Dict[str, str] = {}  # task_key -> task_id
 
         self._running = False
         self._threads: List[threading.Thread] = []
@@ -135,6 +138,24 @@ class Orchestrator:
             timeout=timeout,
             dependencies=dependencies or []
         )
+
+        # Deduplication check
+        if self.deduplication_enabled:
+            import hashlib, json
+            data_str = json.dumps(task_data, sort_keys=True)
+            dedup_key = hashlib.sha256(f"{task_type}:{data_str}".encode()).hexdigest()[:16]
+            with self._lock:
+                if dedup_key in self._deduplication_keys:
+                    existing_task_id = self._deduplication_keys[dedup_key]
+                    if existing_task_id in self.tasks and self.tasks[existing_task_id].status == 'completed':
+                        logger.info(f'Task deduplicated (already completed): {existing_task_id}')
+                        return existing_task_id
+                    # If still running/pending, return existing task_id to avoid duplicate
+                    if existing_task_id in self.tasks and self.tasks[existing_task_id].status in ('pending', 'running'):
+                        logger.info(f'Task deduplicated (still running): {existing_task_id}')
+                        return existing_task_id
+                self._deduplication_keys[dedup_key] = task_id
+
         with self._lock:
             self.tasks[task_id] = task
 
@@ -474,6 +495,26 @@ class Orchestrator:
             prev_task_id = task_id
 
         logger.info(f'Created task chain with {len(task_ids)} tasks')
+        return task_ids
+
+    def submit_batch(self, tasks: List[Dict]) -> List[str]:
+        """
+        Submit multiple tasks at once.
+        tasks: List of dicts with 'task_type', 'task_data', 'timeout' (optional), 'priority' (optional)
+        Returns list of task_ids in order.
+        """
+        task_ids = []
+        for task_spec in tasks:
+            task_id = self.submit_task(
+                task_type=task_spec['task_type'],
+                task_data=task_spec.get('task_data', {}),
+                timeout=task_spec.get('timeout', 300),
+                priority=task_spec.get('priority', 2),
+                dependencies=task_spec.get('dependencies')
+            )
+            task_ids.append(task_id)
+
+        logger.info(f'Batch submitted {len(task_ids)} tasks')
         return task_ids
 
     def _send_to_dead_letter(self, task: Task):

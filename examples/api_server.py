@@ -160,7 +160,7 @@ class EnhancedDashboardHandler(BaseHTTPRequestHandler):
 
         # Serve 3D dashboard HTML
         if path == '/' or path == '/index.html':
-            self.path = '/3d_agent_office.html'
+            self.path = '/admin.html'
         if path == '/3d_agent_office.html':
             self.send_response(200)
             self.send_header('Content-type', 'text/html')
@@ -170,6 +170,26 @@ class EnhancedDashboardHandler(BaseHTTPRequestHandler):
                     self.wfile.write(f.read().encode())
             except:
                 self.wfile.write(b'<html><body><h1>File not found</h1></body></html>')
+            return
+
+        # Serve admin dashboard HTML
+        if path == '/admin.html':
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            try:
+                with open('/home/laodaboss/multi_agent_system/examples/admin_dashboard.html', 'r') as f:
+                    content = f.read()
+                    # Extract HTML from the script (admin dashboard embedded)
+                    start = content.find('<!DOCTYPE html>')
+                    if start >= 0:
+                        html = content[start:]
+                        self.wfile.write(html.encode())
+                    else:
+                        self.wfile.write(b'<html><body>Admin dashboard not found</body></html>')
+            except Exception as e:
+                logger.error(f'Admin dashboard error: {e}')
+                self.wfile.write(b'<html><body>Error loading dashboard</body></html>')
             return
 
         # GET /api/status - system status
@@ -330,6 +350,18 @@ class EnhancedDashboardHandler(BaseHTTPRequestHandler):
             task_id = self.server.orch.submit_task(task_type, task_data, priority, timeout, dependencies)
             logger.info(f'Task submitted: {task_id} ({task_type})')
             self.send_json_response(201, {'task_id': task_id, 'status': 'pending'})
+            return
+
+        # POST /api/tasks/batch - submit multiple tasks
+        if path == '/api/tasks/batch':
+            tasks = data.get('tasks', [])
+            if not tasks:
+                self.send_json_response(400, {'error': 'tasks array is required'})
+                return
+
+            task_ids = self.server.orch.submit_batch(tasks)
+            logger.info(f'Batch submitted {len(task_ids)} tasks')
+            self.send_json_response(201, {'task_ids': task_ids, 'count': len(task_ids)})
             return
 
         # POST /api/workers - register new worker
