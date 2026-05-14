@@ -235,8 +235,92 @@ multi_agent_system/
 python3 tests/test_integration.py
 ```
 
+## 核心模块 / Core Modules
+
+系统包含70+公共模块，涵盖企业级应用需求：
+
+### 基础设施 / Infrastructure
+| 模块 | 说明 |
+|------|------|
+| message.py | 消息格式定义 |
+| queue.py | 消息队列管理 |
+| redis_queue.py | Redis队列支持 |
+| buffer.py | 请求缓冲 |
+| dedup.py | 消息去重 |
+| retry.py | 重试机制 |
+| retry_queue.py | 重试队列 |
+
+### 容错与弹性 / Fault Tolerance
+| 模块 | 说明 |
+|------|------|
+| circuit_breaker.py | 断路器模式 |
+| graceful_shutdown.py | 优雅关闭 |
+| degradation.py | 降级策略 |
+| fallback.py | 降级回调 |
+| load_shedding.py | 负载卸载 |
+| idempotency.py | 幂等性保证 |
+
+### 可观测性 / Observability
+| 模块 | 说明 |
+|------|------|
+| metrics.py | 指标收集 |
+| metrics_agg.py | 指标聚合 |
+| tracing.py | 追踪 |
+| dist_tracing.py | 分布式追踪 |
+| telemetry.py | OpenTelemetry |
+| audit.py | 审计日志 |
+| health.py | 健康检查 |
+
+### 通信与网络 / Communication
+| 模块 | 说明 |
+|------|------|
+| service_mesh.py | 服务网格 |
+| routing.py | 自适应路由 |
+| service_catalog.py | 服务目录 |
+| rate_limit.py | 限流 |
+| circuit.py | 熔断 |
+| webhook.py | Webhook |
+
+### 安全 / Security
+| 模块 | 说明 |
+|------|------|
+| auth.py | 认证 |
+| security.py | RBAC/Token管理 |
+| encryption.py | 加密 |
+| tenant.py | 多租户 |
+
+### 数据与存储 / Data
+| 模块 | 说明 |
+|------|------|
+| cache.py | 缓存 |
+| cache_strat.py | 缓存策略 |
+| persistence.py | 持久化 |
+| timeseries.py | 时序数据 |
+| aggregation.py | 聚合 |
+
+### 任务与工作流 / Tasks
+| 模块 | 说明 |
+|------|------|
+| scheduler.py | 任务调度 |
+| workflow.py | 工作流引擎 |
+| pipeline.py | 任务管道 |
+| batch.py | 批处理 |
+| event_sourcing.py | 事件溯源 |
+
+### 配置与运维 / Ops
+| 模块 | 说明 |
+|------|------|
+| config.py | 配置管理 |
+| config_validator.py | 配置验证 |
+| config_reload.py | 热重载 |
+| versioning.py | API版本 |
+| lifecycle.py | 请求生命周期 |
+| connection_pool.py | 连接池 |
+| pagination.py | 分页 |
+| migration.py | 数据库迁移 |
+
 ---
 
-## License
+## 许可证 / License
 
 MIT
