@@ -5,6 +5,7 @@ import sys
 import os
 import json
 import logging
+import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
@@ -13,6 +14,8 @@ _SRC_DIR = os.path.abspath(os.path.join(this_dir, '..', 'src'))
 sys.path.insert(0, _SRC_DIR)
 
 from multi_agent_system.common.queue import MessageQueueManager
+from multi_agent_system.common.metrics import MetricsCollector, get_metrics
+from multi_agent_system.common.auth import AuthManager, get_auth_manager, init as init_auth
 from multi_agent_system.orchestrator.core import Orchestrator
 from multi_agent_system.worker.agent import WorkerAgent
 
@@ -22,6 +25,112 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger('api_server')
+
+
+def require_auth(f):
+    """Decorator to require authentication for endpoint."""
+    @wraps(f)
+    def wrapper(self, *args, **kwargs):
+        auth_manager = getattr(self.server, 'auth_manager', None)
+        if not auth_manager:
+            return f(self, *args, **kwargs)
+
+        auth_header = self.headers.get('Authorization')
+        api_key = self.headers.get('X-API-Key')
+
+        is_auth, auth_type, roles = auth_manager.authenticate_request(auth_header, api_key)
+        if not is_auth:
+            self.send_json_response(401, {'error': 'Unauthorized', 'message': 'Valid authentication required'})
+            return
+
+        self.auth_type = auth_type
+        self.auth_roles = roles
+        return f(self, *args, **kwargs)
+    return wrapper
+
+
+class SSEClient:
+    """Server-Sent Events client connection."""
+    def __init__(self, handler):
+        self.handler = handler
+        self.running = True
+
+    def send(self, data):
+        if self.running:
+            try:
+                self.handler.send_header('Content-Type', 'text/event-stream')
+                self.handler.send_header('Cache-Control', 'no-cache')
+                self.handler.end_headers()
+                self.handler.wfile.write(f"data: {data}\n\n".encode())
+            except:
+                self.running = False
+
+    def check_auth(self, auth_manager: AuthManager, auth_header: str) -> bool:
+        """Check if client is authenticated."""
+        if not self.handler.server.sse_manager._require_auth:
+            return True
+        is_auth, _, _ = auth_manager.authenticate_request(auth_header)
+        return is_auth
+
+
+class SSEManager:
+    """Manages Server-Sent Events connections for real-time updates."""
+    def __init__(self):
+        self._clients = []
+        self._lock = threading.Lock()
+        self._require_auth = False  # Can be enabled via config
+
+    def set_require_auth(self, required: bool):
+        self._require_auth = required
+
+    def add_client(self, handler):
+        with self._lock:
+            client = SSEClient(handler)
+            self._clients.append(client)
+            logger.info(f'SSE client connected. Total: {len(self._clients)}')
+            return client
+
+    def remove_client(self, client):
+        with self._lock:
+            if client in self._clients:
+                self._clients.remove(client)
+            logger.info(f'SSE client disconnected. Total: {len(self._clients)}')
+
+    def broadcast(self, event_type: str, data: dict):
+        """Broadcast event to all connected SSE clients."""
+        message = json.dumps({"event": event_type, "data": data, "timestamp": time.time()})
+        with self._lock:
+            dead_clients = []
+            for client in self._clients:
+                try:
+                    client.send(message)
+                except Exception as e:
+                    logger.warning(f'Failed to send SSE: {e}')
+                    dead_clients.append(client)
+            for client in dead_clients:
+                self._clients.remove(client)
+
+    def broadcast_task_update(self, task_id: str, status: str, result=None, error=None, task_type=None, task_data=None):
+        self.broadcast("task_update", {
+            "task_id": task_id,
+            "status": status,
+            "result": result,
+            "error": error,
+            "task_type": task_type,
+            "task_data": task_data
+        })
+
+    def broadcast_worker_update(self, worker_id: str, status: str, stats: dict):
+        self.broadcast("worker_update", {
+            "worker_id": worker_id,
+            "status": status,
+            "completed": stats.get("completed", 0),
+            "failed": stats.get("failed", 0)
+        })
+
+
+# Global SSE manager
+sse_manager = SSEManager()
 
 
 class EnhancedDashboardHandler(BaseHTTPRequestHandler):
@@ -120,6 +229,40 @@ class EnhancedDashboardHandler(BaseHTTPRequestHandler):
                 self.send_json_response(404, {'error': 'Worker not found'})
             return
 
+        # GET /api/events - SSE endpoint for real-time updates
+        if path == '/api/events':
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/event-stream')
+            self.send_header('Cache-Control', 'no-cache')
+            self.send_header('Connection', 'keep-alive')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+
+            # Register this client for updates
+            client = self.server.sse_manager.add_client(self)
+            logger.info(f'SSE client connected from {self.address_string()}')
+
+            # Send initial heartbeat
+            self.wfile.write(f"data: {json.dumps({'event': 'connected', 'data': {'status': 'ok'}})}\n\n".encode())
+
+            # Keep connection alive, send heartbeat every 30s
+            try:
+                while True:
+                    time.sleep(30)
+                    self.wfile.write(f": heartbeat\n\n".encode())
+                    self.wfile.flush()
+            except:
+                self.server.sse_manager.remove_client(client)
+            return
+
+        # GET /api/metrics - Prometheus metrics
+        if path == '/api/metrics':
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/plain; version=0.0.4')
+            self.end_headers()
+            self.wfile.write(self.server.metrics.export().encode())
+            return
+
         # 404
         self.send_json_response(404, {'error': 'Not found'})
 
@@ -138,12 +281,13 @@ class EnhancedDashboardHandler(BaseHTTPRequestHandler):
             task_data = data.get('task_data', {})
             priority = data.get('priority', 2)
             timeout = data.get('timeout', 300)
+            dependencies = data.get('dependencies', [])
 
             if not task_type:
                 self.send_json_response(400, {'error': 'task_type is required'})
                 return
 
-            task_id = self.server.orch.submit_task(task_type, task_data, priority, timeout)
+            task_id = self.server.orch.submit_task(task_type, task_data, priority, timeout, dependencies)
             logger.info(f'Task submitted: {task_id} ({task_type})')
             self.send_json_response(201, {'task_id': task_id, 'status': 'pending'})
             return
@@ -233,27 +377,43 @@ class EnhancedDashboardHandler(BaseHTTPRequestHandler):
 
 
 def run_dashboard(orch, mq, port=8080):
+    metrics = get_metrics()
+    auth_manager = AuthManager(
+        jwt_secret='dev-secret-key-change-in-production',
+        api_keys={'dev-key-001': ('Development', ['read', 'write'])}
+    )
     server = HTTPServer(('localhost', port), EnhancedDashboardHandler)
     server.orch = orch
     server.mq = mq
     server.workers = {}
+    server.sse_manager = sse_manager
+    server.metrics = metrics
+    server.auth_manager = auth_manager
     logger.info(f'Enhanced API Server running at http://localhost:{port}')
     logger.info('Endpoints:')
-    logger.info('  GET  /api/status          - System status')
-    logger.info('  GET  /api/tasks           - List all tasks')
-    logger.info('  GET  /api/tasks/{id}      - Get task status')
-    logger.info('  POST /api/tasks           - Submit new task')
-    logger.info('  GET  /api/workers         - List all workers')
-    logger.info('  GET  /api/workers/{id}     - Get worker status')
-    logger.info('  POST /api/workers         - Register new worker')
-    logger.info('  DELETE /api/workers/{id}   - Unregister worker')
-    logger.info('Press Ctrl+C to stop')
+    logger.info('  GET  /api/status          - System status (auth optional)')
+    logger.info('  GET  /api/events          - SSE real-time updates')
+    logger.info('  GET  /api/metrics         - Prometheus metrics')
+    logger.info('  GET  /api/tasks           - List all tasks (auth required)')
+    logger.info('  GET  /api/tasks/{id}      - Get task status (auth required)')
+    logger.info('  POST /api/tasks           - Submit new task (auth required)')
+    logger.info('  GET  /api/workers         - List all workers (auth required)')
+    logger.info('  GET  /api/workers/{id}    - Get worker status (auth required)')
+    logger.info('  POST /api/workers         - Register worker (auth required)')
+    logger.info('  DELETE /api/workers/{id}  - Unregister worker (auth required)')
+    logger.info('Auth: Authorization: Bearer <token> or X-API-Key: <key>')
+    logger.info('Dev key: dev-key-001')
     server.serve_forever()
 
 
 if __name__ == "__main__":
     mq = MessageQueueManager()
-    orch = Orchestrator(mq)
+
+    # Create event callback for SSE broadcasting
+    def on_event(event_type, data):
+        sse_manager.broadcast(event_type, data)
+
+    orch = Orchestrator(mq, event_callback=on_event)
     orch.start()
 
     # Create workers with handlers

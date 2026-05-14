@@ -11,6 +11,7 @@ from typing import Dict, List, Optional
 from ..common.message import Message, MessageType, QueueType, MessagePriority
 from ..common.queue import MessageQueueManager
 from ..common.timeout import TimeoutManager
+from ..common.metrics import get_metrics
 
 logger = logging.getLogger('orchestrator')
 
@@ -60,7 +61,8 @@ class Orchestrator:
     def __init__(self, mq: MessageQueueManager,
                  heartbeat_interval: int = 10,
                  heartbeat_timeout: int = 30,
-                 max_task_retries: int = 3):
+                 max_task_retries: int = 3,
+                 event_callback=None):
         self.mq = mq
         self.state = OrchestratorState.IDLE
         self.tasks: Dict[str, Task] = {}
@@ -69,10 +71,18 @@ class Orchestrator:
         self.heartbeat_timeout = heartbeat_timeout
         self.max_task_retries = max_task_retries
         self.timeout_manager = TimeoutManager()
+        self.event_callback = event_callback  # Optional callback for external events (e.g., SSE)
 
         self._running = False
         self._threads: List[threading.Thread] = []
         self._lock = threading.RLock()
+
+    def _emit_event(self, event_type: str, data: dict):
+        if self.event_callback:
+            try:
+                self.event_callback(event_type, data)
+            except Exception as e:
+                logger.warning(f'Event callback failed: {e}')
 
     def start(self):
         self._running = True
@@ -91,19 +101,22 @@ class Orchestrator:
             t.join(timeout=5)
 
     def submit_task(self, task_type: str, task_data: Dict,
-                    priority: int = 2, timeout: int = 300) -> str:
+                    priority: int = 2, timeout: int = 300,
+                    dependencies: List[str] = None) -> str:
         task_id = str(uuid.uuid4())
         task = Task(
             task_id=task_id,
             task_type=task_type,
             task_data=task_data,
             priority=priority,
-            timeout=timeout
+            timeout=timeout,
+            dependencies=dependencies or []
         )
         with self._lock:
             self.tasks[task_id] = task
 
         self.timeout_manager.start_timer(task_id, timeout)
+        get_metrics().record_task_submitted()
 
         # Find target worker and send ASSIGN directly (no broadcast to avoid race conditions)
         available = [
@@ -116,11 +129,18 @@ class Orchestrator:
             target_worker = min(available, key=lambda w: w.completed_tasks)
 
         if target_worker:
-            task.status = "running"
-            task.assigned_worker = target_worker.worker_id
-            target_worker.status = "busy"
-            target_worker.current_task_id = task_id
-            target = target_worker.worker_id
+            # Check dependencies before starting
+            if task.dependencies and not self._all_dependencies_met(task.dependencies):
+                # Dependencies not met, keep as pending
+                task.status = "pending"
+                target = "*"
+                target_worker = None
+            else:
+                task.status = "running"
+                task.assigned_worker = target_worker.worker_id
+                target_worker.status = "busy"
+                target_worker.current_task_id = task_id
+                target = target_worker.worker_id
         else:
             # No worker available, keep as pending for scheduler
             target = "*"
@@ -175,6 +195,12 @@ class Orchestrator:
         with self._lock:
             self.workers[worker_info.worker_id] = worker_info
 
+        self._emit_event("worker_registered", {
+            "worker_id": worker_id,
+            "worker_type": payload.get("worker_type", "general"),
+            "capabilities": capabilities
+        })
+
         ack = Message(
             type=MessageType.HEARTBEAT_ACK.value,
             payload={"status": "registered"},
@@ -212,8 +238,27 @@ class Orchestrator:
                             worker.status = "idle"
                             worker.current_task_id = None
                         worker.completed_tasks += 1
+                        # Trigger dependent tasks
+                        self._trigger_dependent_tasks(task_id, task.result)
+                        self._emit_event("task_update", {
+                            "task_id": task_id,
+                            "status": "completed",
+                            "result": task.result,
+                            "task_type": task.task_type
+                        })
+                        # Record metrics
+                        if task.started_at:
+                            latency = task.completed_at - task.started_at
+                            get_metrics().record_task_completed(latency)
                     else:
                         logger.warning(f'Task failed: {task_id} error={msg.payload.get("error")}')
+                        self._emit_event("task_update", {
+                            "task_id": task_id,
+                            "status": "failed",
+                            "error": msg.payload.get("error"),
+                            "task_type": task.task_type
+                        })
+                        get_metrics().record_task_failed()
                 else:
                     task.error = msg.payload.get("error")
                     if task.assigned_worker and task.assigned_worker in self.workers:
@@ -359,6 +404,50 @@ class Orchestrator:
                 logger.warning(f'Task timeout: {task_id}')
                 if task.assigned_worker:
                     self._reassign_worker_tasks(task.assigned_worker)
+
+    def _all_dependencies_met(self, dependencies: List[str]) -> bool:
+        """Check if all dependency tasks are completed."""
+        for dep_id in dependencies:
+            if dep_id not in self.tasks:
+                return False
+            if self.tasks[dep_id].status != "completed":
+                return False
+        return True
+
+    def _trigger_dependent_tasks(self, completed_task_id: str, result: Dict):
+        """Trigger tasks that depend on the completed task."""
+        for task in self.tasks.values():
+            if completed_task_id in task.dependencies:
+                # Re-check if all dependencies are now met
+                if self._all_dependencies_met(task.dependencies):
+                    # Schedule the dependent task
+                    logger.info(f'All dependencies met for task {task.task_id}, scheduling now')
+                    worker = self._select_worker(task)
+                    if worker:
+                        self._assign_task(task, worker)
+
+    def chain_tasks(self, task_chain: List[Dict]) -> List[str]:
+        """
+        Create a chain of dependent tasks.
+        task_chain: List of dicts with 'task_type', 'task_data', 'timeout' (optional)
+        Returns list of task_ids in order.
+        """
+        task_ids = []
+        prev_task_id = None
+
+        for i, task_spec in enumerate(task_chain):
+            deps = [prev_task_id] if prev_task_id else []
+            task_id = self.submit_task(
+                task_type=task_spec['task_type'],
+                task_data=task_spec['task_data'],
+                timeout=task_spec.get('timeout', 300),
+                dependencies=deps
+            )
+            task_ids.append(task_id)
+            prev_task_id = task_id
+
+        logger.info(f'Created task chain with {len(task_ids)} tasks')
+        return task_ids
 
     def get_task_status(self, task_id: str) -> Optional[Dict]:
         with self._lock:
