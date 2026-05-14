@@ -101,16 +101,37 @@ class Orchestrator:
             self.tasks[task_id] = task
 
         self.timeout_manager.start_timer(task_id, timeout)
+
+        # Find target worker and send ASSIGN directly (no broadcast to avoid race conditions)
+        available = [
+            w for w in self.workers.values()
+            if w.status in ("idle", "online") and
+               (w.capabilities is None or task_type in w.capabilities)
+        ]
+        target_worker = None
+        if available:
+            target_worker = min(available, key=lambda w: w.completed_tasks)
+
+        if target_worker:
+            task.status = "running"
+            task.assigned_worker = target_worker.worker_id
+            target_worker.status = "busy"
+            target_worker.current_task_id = task_id
+            target = target_worker.worker_id
+        else:
+            # No worker available, keep as pending for scheduler
+            target = "*"
+
         msg = Message(
             type=MessageType.TASK.value,
-            action="NEW_TASK",
+            action="ASSIGN",  # Workers only process ASSIGN
             payload={
                 "task_id": task_id,
                 "task_type": task_type,
                 "task_data": task_data,
                 "timeout": timeout
             },
-            target="*",
+            target=target,
             correlation_id=task_id
         )
         self.mq.enqueue(QueueType.ORCHESTRATOR_TO_WORKER.value, msg)

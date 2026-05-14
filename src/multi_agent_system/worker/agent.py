@@ -76,10 +76,8 @@ class WorkerAgent:
 
     def _handle_message(self, msg: Message):
         if msg.type == MessageType.TASK.value:
-            # Workers process ASSIGN and RETRY actions
-            # NEW_TASK goes to orchestrator's scheduler, but workers can process
-            # ASSIGN directly while scheduler handles NewTask -> Assign flow
-            if msg.action in ("ASSIGN", "RETRY", "NEW_TASK"):
+            # Workers only process ASSIGN and RETRY (not NEW_TASK which is for scheduler)
+            if msg.action in ("ASSIGN", "RETRY"):
                 self._handle_task(msg)
         elif msg.type == MessageType.SHUTDOWN.value:
             self._running = False
