@@ -62,7 +62,8 @@ class Orchestrator:
                  heartbeat_interval: int = 10,
                  heartbeat_timeout: int = 30,
                  max_task_retries: int = 3,
-                 event_callback=None):
+                 event_callback=None,
+                 dead_letter_callback=None):
         self.mq = mq
         self.state = OrchestratorState.IDLE
         self.tasks: Dict[str, Task] = {}
@@ -71,7 +72,8 @@ class Orchestrator:
         self.heartbeat_timeout = heartbeat_timeout
         self.max_task_retries = max_task_retries
         self.timeout_manager = TimeoutManager()
-        self.event_callback = event_callback  # Optional callback for external events (e.g., SSE)
+        self.event_callback = event_callback
+        self.dead_letter_callback = dead_letter_callback  # Callback for DLQ handling
 
         self._running = False
         self._threads: List[threading.Thread] = []
@@ -96,9 +98,30 @@ class Orchestrator:
             t.start()
 
     def stop(self):
+        """Graceful stop - wait for pending tasks to complete."""
         self._running = False
+
+        # Wait for running tasks with timeout
+        pending_timeout = 30  # seconds to wait for pending tasks
+        start_time = time.time()
+
+        with self._lock:
+            running_tasks = [t for t in self.tasks.values() if t.status == 'running']
+            pending_tasks = [t for t in self.tasks.values() if t.status == 'pending']
+
+        if running_tasks or pending_tasks:
+            logger.info(f'Graceful shutdown: waiting for {len(running_tasks)} running, {len(pending_tasks)} pending tasks')
+            while time.time() - start_time < pending_timeout:
+                with self._lock:
+                    still_running = sum(1 for t in self.tasks.values() if t.status == 'running')
+                if still_running == 0:
+                    break
+                time.sleep(0.5)
+
         for t in self._threads:
             t.join(timeout=5)
+
+        logger.info('Orchestrator stopped')
 
     def submit_task(self, task_type: str, task_data: Dict,
                     priority: int = 2, timeout: int = 300,
@@ -288,6 +311,8 @@ class Orchestrator:
                 else:
                     task.status = "failed"
                     logger.error(f'Task {task_id} failed permanently after {task.retry_count} retries')
+                    # Send to dead letter queue
+                    self._send_to_dead_letter(task)
 
     def _heartbeat_monitor(self):
         while self._running:
@@ -404,6 +429,8 @@ class Orchestrator:
                 logger.warning(f'Task timeout: {task_id}')
                 if task.assigned_worker:
                     self._reassign_worker_tasks(task.assigned_worker)
+                # Send to dead letter queue
+                self._send_to_dead_letter(task)
 
     def _all_dependencies_met(self, dependencies: List[str]) -> bool:
         """Check if all dependency tasks are completed."""
@@ -448,6 +475,40 @@ class Orchestrator:
 
         logger.info(f'Created task chain with {len(task_ids)} tasks')
         return task_ids
+
+    def _send_to_dead_letter(self, task: Task):
+        """Send failed task to dead letter queue."""
+        dlq_message = Message(
+            type="DEAD_LETTER",
+            action="DLQ",
+            payload={
+                "task_id": task.task_id,
+                "task_type": task.task_type,
+                "task_data": task.task_data,
+                "error": task.error,
+                "retry_count": task.retry_count,
+                "failed_at": time.time()
+            },
+            target=QueueType.DEAD_LETTER.value
+        )
+        self.mq.enqueue(QueueType.DEAD_LETTER.value, dlq_message)
+        logger.warning(f'Task {task.task_id} sent to dead letter queue')
+
+        if self.dead_letter_callback:
+            try:
+                self.dead_letter_callback(task)
+            except Exception as e:
+                logger.error(f'DLQ callback failed: {e}')
+
+    def get_dead_letter_tasks(self) -> List[Dict]:
+        """Get all tasks in dead letter queue."""
+        dlq_tasks = []
+        while True:
+            msg = self.mq.dequeue(QueueType.DEAD_LETTER.value, timeout=0.1)
+            if not msg:
+                break
+            dlq_tasks.append(msg.payload)
+        return dlq_tasks
 
     def get_task_status(self, task_id: str) -> Optional[Dict]:
         with self._lock:

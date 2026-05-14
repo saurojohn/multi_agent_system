@@ -3,17 +3,24 @@
 import os
 import yaml
 import logging
-from typing import Dict, Any, List, Optional
+import threading
+import time
+from typing import Dict, Any, List, Optional, Callable
 
 logger = logging.getLogger('config')
 
 
 class Config:
-    """Configuration manager."""
+    """Configuration manager with hot reload support."""
 
     def __init__(self, config_path: Optional[str] = None):
         self.config_path = config_path or self._get_default_config_path()
         self._config: Dict[str, Any] = {}
+        self._lock = threading.RLock()
+        self._reload_callbacks: List[Callable] = []
+        self._watcher_running = False
+        self._watcher_thread = None
+        self._last_modified = 0
         self.load()
 
     def _get_default_config_path(self) -> str:
@@ -89,6 +96,71 @@ class Config:
     @property
     def tasks(self) -> Dict[str, Any]:
         return self._config.get('tasks', {})
+
+    def reload(self):
+        """Manually reload configuration from file."""
+        with self._lock:
+            old_config = self._config.copy()
+            self.load()
+            if old_config != self._config:
+                logger.info('Configuration reloaded')
+                self._notify_callbacks(old_config, self._config)
+
+    def _notify_callbacks(self, old_config: Dict, new_config: Dict):
+        """Notify registered callbacks of config changes."""
+        for callback in self._reload_callbacks:
+            try:
+                callback(new_config)
+            except Exception as e:
+                logger.error(f'Config reload callback failed: {e}')
+
+    def on_reload(self, callback: Callable[[Dict], None]):
+        """Register callback to be called when config is reloaded."""
+        self._reload_callbacks.append(callback)
+
+    def start_watcher(self, interval: float = 5.0):
+        """Start automatic config file watcher."""
+        self._watcher_running = True
+        self._watcher_thread = threading.Thread(
+            target=self._watch_config_file,
+            args=(interval,),
+            daemon=True
+        )
+        self._watcher_thread.start()
+        logger.info(f'Started config watcher (interval: {interval}s)')
+
+    def stop_watcher(self):
+        """Stop automatic config file watcher."""
+        self._watcher_running = False
+        if self._watcher_thread:
+            self._watcher_thread.join(timeout=2)
+        logger.info('Stopped config watcher')
+
+    def _watch_config_file(self, interval: float):
+        """Watch for config file changes."""
+        if os.path.exists(self.config_path):
+            self._last_modified = os.path.getmtime(self.config_path)
+
+        while self._watcher_running:
+            time.sleep(interval)
+            if os.path.exists(self.config_path):
+                current_mtime = os.path.getmtime(self.config_path)
+                if current_mtime != self._last_modified:
+                    self._last_modified = current_mtime
+                    logger.info('Config file changed, reloading...')
+                    self.reload()
+
+    def set(self, key: str, value: Any):
+        """Set configuration value (runtime only, not persisted)."""
+        with self._lock:
+            keys = key.split('.')
+            config = self._config
+            for k in keys[:-1]:
+                if k not in config:
+                    config[k] = {}
+                config = config[k]
+            config[keys[-1]] = value
+            logger.info(f'Runtime config set: {key} = {value}')
 
 
 def setup_logging(level: str = 'INFO', format: str = None):

@@ -16,6 +16,7 @@ sys.path.insert(0, _SRC_DIR)
 from multi_agent_system.common.queue import MessageQueueManager
 from multi_agent_system.common.metrics import MetricsCollector, get_metrics
 from multi_agent_system.common.auth import AuthManager, get_auth_manager, init as init_auth
+from multi_agent_system.common.rate_limit import RateLimitMiddleware, get_middleware
 from multi_agent_system.orchestrator.core import Orchestrator
 from multi_agent_system.worker.agent import WorkerAgent
 
@@ -146,6 +147,17 @@ class EnhancedDashboardHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path
 
+        # Rate limit check
+        client_id = self.headers.get('X-Client-ID', self.address_string())
+        allowed, reason, retry_after = self.server.rate_limiter.check_request(client_id, path)
+        if not allowed:
+            self.send_response(429)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Retry-After', str(retry_after))
+            self.end_headers()
+            self.wfile.write(json.dumps({'error': 'Rate limit exceeded', 'message': reason, 'retry_after': retry_after}).encode())
+            return
+
         # Serve 3D dashboard HTML
         if path == '/' or path == '/index.html':
             self.path = '/3d_agent_office.html'
@@ -177,6 +189,34 @@ class EnhancedDashboardHandler(BaseHTTPRequestHandler):
                     'completed_at': t.completed_at
                 }
             self.send_json_response(200, {'workers': workers, 'tasks': tasks})
+            return
+
+        # GET /health - health check for load balancers
+        if path == '/health' or path == '/api/health':
+            health_status = {
+                'status': 'healthy',
+                'timestamp': time.time(),
+                'orchestrator': 'running' if self.server.orch._running else 'stopped',
+                'workers': {
+                    'total': len(self.server.orch.workers),
+                    'online': sum(1 for w in self.server.orch.workers.values() if w.status != 'offline')
+                },
+                'tasks': {
+                    'pending': sum(1 for t in self.server.orch.tasks.values() if t.status == 'pending'),
+                    'running': sum(1 for t in self.server.orch.tasks.values() if t.status == 'running'),
+                    'completed': sum(1 for t in self.server.orch.tasks.values() if t.status == 'completed'),
+                    'failed': sum(1 for t in self.server.orch.tasks.values() if t.status == 'failed')
+                },
+                'queue_size': {
+                    'orchestrator_to_worker': self.server.mq.size('orchestrator_to_worker'),
+                    'worker_to_orchestrator': self.server.mq.size('worker_to_orchestrator')
+                }
+            }
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Cache-Control', 'no-cache')
+            self.end_headers()
+            self.wfile.write(json.dumps(health_status).encode())
             return
 
         # GET /api/tasks - list all tasks
@@ -342,6 +382,18 @@ class EnhancedDashboardHandler(BaseHTTPRequestHandler):
             self.send_json_response(200, {'task_id': task_id, 'status': 'cancellation_requested'})
             return
 
+        # POST /api/config/reload - hot reload configuration
+        if path == '/api/config/reload':
+            config = getattr(self.server, 'config', None)
+            if config:
+                old_config = dict(config._config)
+                config.reload()
+                logger.info('Configuration hot reloaded via API')
+                self.send_json_response(200, {'status': 'reloaded', 'message': 'Configuration reloaded successfully'})
+            else:
+                self.send_json_response(400, {'error': 'Config not available'})
+            return
+
         self.send_json_response(404, {'error': 'Not found'})
 
     def do_DELETE(self):
@@ -378,6 +430,7 @@ class EnhancedDashboardHandler(BaseHTTPRequestHandler):
 
 def run_dashboard(orch, mq, port=8080):
     metrics = get_metrics()
+    rate_limiter = get_middleware()
     auth_manager = AuthManager(
         jwt_secret='dev-secret-key-change-in-production',
         api_keys={'dev-key-001': ('Development', ['read', 'write'])}
@@ -389,12 +442,15 @@ def run_dashboard(orch, mq, port=8080):
     server.sse_manager = sse_manager
     server.metrics = metrics
     server.auth_manager = auth_manager
+    server.rate_limiter = rate_limiter
     logger.info(f'Enhanced API Server running at http://localhost:{port}')
+    logger.info('Rate limiting enabled: 1000 global, 100/endpoint, 60/client/min')
     logger.info('Endpoints:')
-    logger.info('  GET  /api/status          - System status (auth optional)')
-    logger.info('  GET  /api/events          - SSE real-time updates')
-    logger.info('  GET  /api/metrics         - Prometheus metrics')
-    logger.info('  GET  /api/tasks           - List all tasks (auth required)')
+    logger.info('  GET  /health             - Health check (for load balancers)')
+    logger.info('  GET  /api/status         - System status (auth optional)')
+    logger.info('  GET  /api/events         - SSE real-time updates')
+    logger.info('  GET  /api/metrics        - Prometheus metrics')
+    logger.info('  GET  /api/tasks          - List all tasks (auth required)')
     logger.info('  GET  /api/tasks/{id}      - Get task status (auth required)')
     logger.info('  POST /api/tasks           - Submit new task (auth required)')
     logger.info('  GET  /api/workers         - List all workers (auth required)')
@@ -407,6 +463,8 @@ def run_dashboard(orch, mq, port=8080):
 
 
 if __name__ == "__main__":
+    import signal
+
     mq = MessageQueueManager()
 
     # Create event callback for SSE broadcasting
@@ -414,6 +472,16 @@ if __name__ == "__main__":
         sse_manager.broadcast(event_type, data)
 
     orch = Orchestrator(mq, event_callback=on_event)
+
+    # Graceful shutdown handler
+    def shutdown_handler(signum, frame):
+        logger.info('Received shutdown signal, graceful stop...')
+        orch.stop()
+        sys.exit(0)
+
+    signal.signal(signal.SIGTERM, shutdown_handler)
+    signal.signal(signal.SIGINT, shutdown_handler)
+
     orch.start()
 
     # Create workers with handlers
