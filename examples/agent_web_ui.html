@@ -93,6 +93,37 @@
         .refresh-indicator { display: inline-flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 12px; }
         .refresh-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); animation: pulse 2s infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .notification-bell { position: relative; cursor: pointer; padding: 10px; border-radius: 8px; background: var(--bg-card); }
+        .notification-badge { position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; background: var(--danger); border-radius: 50%; font-size: 11px; display: flex; align-items: center; justify-content: center; }
+        .notification-dropdown { position: absolute; top: 100%; right: 0; width: 320px; background: var(--bg-light); border: 1px solid var(--border); border-radius: 12px; margin-top: 8px; display: none; z-index: 100; box-shadow: 0 10px 40px rgba(0,0,0,0.3); }
+        .notification-dropdown.show { display: block; }
+        .notification-item { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+        .notification-item:last-child { border-bottom: none; }
+        .notification-title { font-weight: 600; margin-bottom: 4px; }
+        .notification-message { font-size: 12px; color: var(--text-muted); }
+        .notification-time { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+        .notification-unread { border-left: 3px solid var(--primary); }
+        .activity-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .activity-icon { width: 32px; height: 32px; border-radius: 8px; background: var(--bg-card); display: flex; align-items: center; justify-content: center; }
+        .activity-content { flex: 1; }
+        .activity-action { font-weight: 500; margin-bottom: 4px; }
+        .activity-details { font-size: 12px; color: var(--text-muted); }
+        .activity-time { font-size: 11px; color: var(--text-muted); }
+        .search-box { display: flex; gap: 8px; margin-bottom: 20px; }
+        .search-box input { flex: 1; }
+        .filter-dropdown { display: flex; gap: 8px; margin-bottom: 16px; }
+        .filter-tag { padding: 6px 12px; background: var(--bg-card); border-radius: 20px; font-size: 12px; cursor: pointer; }
+        .filter-tag.active { background: var(--primary); color: white; }
+        .toast { position: fixed; bottom: 20px; right: 20px; padding: 16px 24px; background: var(--bg-light); border: 1px solid var(--border); border-radius: 12px; display: none; z-index: 2000; animation: slideIn 0.3s ease; }
+        .toast.show { display: block; }
+        .toast.success { border-color: var(--success); }
+        .toast.error { border-color: var(--danger); }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .progress-bar { height: 8px; background: var(--bg-card); border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: var(--primary); transition: width 0.3s; }
+        .tooltip { position: relative; }
+        .tooltip::after { content: attr(data-tip); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); padding: 6px 12px; background: var(--bg-card); border-radius: 6px; font-size: 12px; white-space: nowrap; display: none; }
+        .tooltip:hover::after { display: block; }
     </style>
 </head>
 <body>
@@ -123,6 +154,14 @@
                 <span class="nav-icon">⚙️</span>
                 <span>系统设置</span>
             </div>
+            <div class="nav-item" data-page="notifications">
+                <span class="nav-icon">🔔</span>
+                <span>通知中心</span>
+            </div>
+            <div class="nav-item" data-page="activity">
+                <span class="nav-icon">📋</span>
+                <span>活动日志</span>
+            </div>
         </nav>
         <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border);">
             <div class="nav-item">
@@ -133,13 +172,28 @@
     </div>
 
     <div class="main">
+        <!-- Notification Dropdown -->
+        <div class="notification-dropdown" id="notification-dropdown">
+            <div style="padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight: 600;">通知</span>
+                <button class="btn btn-sm btn-secondary" onclick="markAllRead()">全部已读</button>
+            </div>
+            <div id="notification-list"></div>
+        </div>
+
         <!-- Dashboard Page -->
         <div id="page-dashboard" class="tab-content active">
             <div class="header">
                 <h1>仪表盘</h1>
-                <div class="refresh-indicator">
-                    <span class="refresh-dot"></span>
-                    <span>实时更新</span>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <div class="notification-bell" onclick="toggleNotifications()">
+                        🔔
+                        <span class="notification-badge" id="notification-count">3</span>
+                    </div>
+                    <div class="refresh-indicator">
+                        <span class="refresh-dot"></span>
+                        <span>实时更新</span>
+                    </div>
                 </div>
             </div>
             <div class="stats-grid">
@@ -163,38 +217,50 @@
             <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px;">
                 <div class="card">
                     <div class="card-title">最近任务</div>
+                    <div class="search-box">
+                        <input type="text" placeholder="搜索任务..." id="task-search" oninput="filterTasks()">
+                        <button class="btn btn-secondary">🔍</button>
+                    </div>
                     <table>
                         <thead>
                             <tr>
                                 <th>任务ID</th>
                                 <th>类型</th>
                                 <th>状态</th>
+                                <th>优先级</th>
                                 <th>时间</th>
+                                <th>操作</th>
                             </tr>
                         </thead>
                         <tbody id="recent-tasks">
                         </tbody>
                     </table>
                 </div>
-                <div class="card">
-                    <div class="card-title">系统状态</div>
-                    <div style="padding: 20px 0;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 16px;">
-                            <span>Orchestrator</span>
-                            <span class="badge badge-success">运行中</span>
+                <div>
+                    <div class="card" style="margin-bottom: 20px;">
+                        <div class="card-title">系统状态</div>
+                        <div style="padding: 20px 0;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 16px;">
+                                <span>Orchestrator</span>
+                                <span class="badge badge-success">运行中</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 16px;">
+                                <span>消息队列</span>
+                                <span class="badge badge-success">正常</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 16px;">
+                                <span>Worker注册</span>
+                                <span class="badge badge-primary" id="worker-status">0/0</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>系统版本</span>
+                                <span class="badge badge-primary">v1.0.0</span>
+                            </div>
                         </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 16px;">
-                            <span>消息队列</span>
-                            <span class="badge badge-success">正常</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 16px;">
-                            <span>Worker注册</span>
-                            <span class="badge badge-primary" id="worker-status">0/0</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between;">
-                            <span>系统版本</span>
-                            <span class="badge badge-primary">v1.0.0</span>
-                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">活动日志</div>
+                        <div id="activity-log"></div>
                     </div>
                 </div>
             </div>
@@ -373,6 +439,36 @@
                     <button class="btn btn-primary" onclick="saveSettings()">保存设置</button>
                     <button class="btn btn-secondary" style="margin-left: 12px;" onclick="resetSettings()">重置</button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Notifications Page -->
+        <div id="page-notifications" class="tab-content">
+            <div class="header">
+                <h1>通知中心</h1>
+                <button class="btn btn-secondary" onclick="markAllRead()">全部已读</button>
+            </div>
+            <div class="card">
+                <div class="filter-dropdown">
+                    <span class="filter-tag active" data-filter="all" onclick="filterNotifications('all')">全部</span>
+                    <span class="filter-tag" data-filter="info" onclick="filterNotifications('info')">信息</span>
+                    <span class="filter-tag" data-filter="success" onclick="filterNotifications('success')">成功</span>
+                    <span class="filter-tag" data-filter="warning" onclick="filterNotifications('warning')">警告</span>
+                    <span class="filter-tag" data-filter="error" onclick="filterNotifications('error')">错误</span>
+                </div>
+                <div id="notification-page-list"></div>
+            </div>
+        </div>
+
+        <!-- Activity Log Page -->
+        <div id="page-activity" class="tab-content">
+            <div class="header">
+                <h1>活动日志</h1>
+                <button class="btn btn-secondary" onclick="clearActivityLog()">清空日志</button>
+            </div>
+            <div class="card">
+                <div class="card-title">最近活动</div>
+                <div id="activity-page-list"></div>
             </div>
         </div>
     </div>
@@ -652,6 +748,138 @@
 
         loadDashboard();
         setInterval(loadDashboard, 30000);
+
+        // Notifications
+        let notifications = [
+            { id: '1', title: '任务完成', message: 'task_abc123 已完成', level: 'success', time: '2分钟前', read: false },
+            { id: '2', title: 'Worker离线', message: 'worker_4 已断开连接', level: 'warning', time: '5分钟前', read: false },
+            { id: '3', title: '新任务', message: '收到新任务 task_def456', level: 'info', time: '1分钟前', read: false },
+            { id: '4', title: '任务失败', message: 'task_ghi789 执行失败', level: 'error', time: '10分钟前', read: true }
+        ];
+
+        function updateNotificationBadge() {
+            const unread = notifications.filter(n => !n.read).length;
+            document.getElementById('notification-count').textContent = unread;
+            document.getElementById('notification-count').style.display = unread > 0 ? 'flex' : 'none';
+        }
+
+        function toggleNotifications() {
+            const dropdown = document.getElementById('notification-dropdown');
+            dropdown.classList.toggle('show');
+            renderNotifications();
+        }
+
+        function renderNotifications() {
+            const list = document.getElementById('notification-list');
+            list.innerHTML = notifications.slice(0, 10).map(n => `
+                <div class="notification-item ${n.read ? '' : 'notification-unread'}" onclick="markRead('${n.id}')">
+                    <div class="notification-title">${n.title}</div>
+                    <div class="notification-message">${n.message}</div>
+                    <div class="notification-time">${n.time}</div>
+                </div>
+            `).join('');
+        }
+
+        function markRead(id) {
+            const n = notifications.find(n => n.id === id);
+            if (n) n.read = true;
+            updateNotificationBadge();
+            renderNotifications();
+        }
+
+        function markAllRead() {
+            notifications.forEach(n => n.read = true);
+            updateNotificationBadge();
+            renderNotifications();
+        }
+
+        function filterNotifications(filter) {
+            document.querySelectorAll('.filter-tag').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            const pageList = document.getElementById('notification-page-list');
+            const filtered = filter === 'all' ? notifications : notifications.filter(n => n.level === filter);
+            pageList.innerHTML = filtered.map(n => `
+                <div class="notification-item ${n.read ? '' : 'notification-unread'}">
+                    <div class="notification-title">${n.title}</div>
+                    <div class="notification-message">${n.message}</div>
+                    <div class="notification-time">${n.time}</div>
+                </div>
+            `).join('') || '<div style="padding: 20px; text-align: center; color: var(--text-muted);">暂无通知</div>';
+        }
+
+        // Activity Log
+        let activityLog = [
+            { action: '登录系统', details: '管理员登录管理界面', user: 'admin', time: '刚刚', level: 'info' },
+            { action: '提交任务', details: '提交了 analysis 类型任务', user: 'admin', time: '2分钟前', level: 'info' },
+            { action: '任务完成', details: 'task_abc123 执行完成', user: 'worker_1', time: '5分钟前', level: 'success' },
+            { action: 'Worker注册', details: 'worker_3 上线', user: 'system', time: '10分钟前', level: 'info' },
+            { action: '设置更新', details: '修改了超时时间为 300秒', user: 'admin', time: '15分钟前', level: 'info' }
+        ];
+
+        function renderActivityLog() {
+            const log = document.getElementById('activity-log');
+            log.innerHTML = activityLog.slice(0, 5).map(a => `
+                <div class="activity-item">
+                    <div class="activity-icon">${getActivityIcon(a.level)}</div>
+                    <div class="activity-content">
+                        <div class="activity-action">${a.action}</div>
+                        <div class="activity-details">${a.details}</div>
+                    </div>
+                    <div class="activity-time">${a.time}</div>
+                </div>
+            `).join('');
+        }
+
+        function getActivityIcon(level) {
+            const icons = { info: '📋', success: '✅', warning: '⚠️', error: '❌' };
+            return icons[level] || '📋';
+        }
+
+        function renderActivityPage() {
+            const list = document.getElementById('activity-page-list');
+            list.innerHTML = activityLog.map(a => `
+                <div class="activity-item">
+                    <div class="activity-icon">${getActivityIcon(a.level)}</div>
+                    <div class="activity-content">
+                        <div class="activity-action">${a.action}</div>
+                        <div class="activity-details">${a.details} · ${a.user}</div>
+                    </div>
+                    <div class="activity-time">${a.time}</div>
+                </div>
+            `).join('');
+        }
+
+        function clearActivityLog() {
+            if (confirm('确定要清空活动日志吗?')) {
+                activityLog = [];
+                renderActivityLog();
+                renderActivityPage();
+            }
+        }
+
+        // Toast notifications
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Task filtering
+        function filterTasks() {
+            const search = document.getElementById('task-search').value.toLowerCase();
+            // Filter implementation would go here
+        }
+
+        // Initialize
+        updateNotificationBadge();
+        renderActivityLog();
+        renderActivityPage();
     </script>
 </body>
 </html>
