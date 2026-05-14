@@ -79,6 +79,13 @@ python3 examples/api_server.py
 # 在浏览器打开 examples/3d_agent_office.html
 ```
 
+**4. Telegram Bot / Telegram机器人**
+```bash
+# Edit examples/telegram_bot_example.py and set your bot token
+python3 examples/telegram_bot_example.py
+# Send /start to your bot on Telegram
+```
+
 ---
 
 ## 使用方法 / Usage
@@ -138,10 +145,31 @@ for w in workers:
     print(f"{w['worker_id']}: {w['status']}")
 ```
 
-### 5. 停止系统 / Stop System
+### 5. Telegram Bot 交互 / Telegram Bot Interaction
+```python
+from multi_agent_system.common.telegram_bot import configure_bot, start_bot, stop_bot
+
+# 配置Bot (从 @BotFather 获取token)
+bot = configure_bot("YOUR_BOT_TOKEN", orchestrator=orch)
+
+# 启动Bot
+start_bot(polling=True)
+
+# Bot命令:
+# /start - 开始
+# /help - 帮助
+# /status - 系统状态
+# /list - 我的任务
+# /submit <type> <data> - 提交任务
+# /result <task_id> - 查看结果
+# /cancel <task_id> - 取消任务
+```
+
+### 6. 停止系统 / Stop System
 ```python
 worker.stop()
 orch.stop()
+stop_bot()  # 如果使用Telegram Bot
 ```
 
 ---
@@ -204,36 +232,21 @@ GET /api/status
 ```
 multi_agent_system/
 ├── src/multi_agent_system/
-│   ├── common/
-│   │   ├── message.py      # 消息格式定义 / Message format definition
-│   │   ├── queue.py        # 消息队列管理器 / Message queue manager
-│   │   ├── errors.py       # 错误处理 / Error handling
-│   │   └── timeout.py      # 超时管理 / Timeout management
-│   ├── orchestrator/
-│   │   ├── core.py         # Orchestrator 主类 / Orchestrator main class
-│   │   └── process_manager.py
-│   ├── worker/
-│   │   └── agent.py        # WorkerAgent 类 / WorkerAgent class
-│   └── protocols/
-│       └── api.py
+│   ├── common/           # 70+ 公共模块
+│   ├── orchestrator/     # Orchestrator 主类
+│   ├── worker/           # WorkerAgent 类
+│   └── protocols/        # API 协议
 ├── examples/
-│   ├── simple_demo.py       # 简单演示 / Simple demo
-│   ├── api_server.py       # API 服务器 / API server
-│   └── agent_office_3d.py  # 3D 可视化 / 3D visualization
+│   ├── simple_demo.py
+│   ├── api_server.py
+│   ├── agent_office_3d.py
+│   └── telegram_bot_example.py
+├── config/
+│   └── default.yaml
 └── tests/
-    ├── test_integration.py  # 集成测试 / Integration tests
-    ├── test_orchestrator.py
-    ├── test_queue.py
-    └── test_worker.py
 ```
 
 ---
-
-## 运行测试 / Run Tests
-
-```bash
-python3 tests/test_integration.py
-```
 
 ## 核心模块 / Core Modules
 
@@ -318,6 +331,11 @@ python3 tests/test_integration.py
 | connection_pool.py | 连接池 |
 | pagination.py | 分页 |
 | migration.py | 数据库迁移 |
+
+### 外部集成 / External Integration
+| 模块 | 说明 |
+|------|------|
+| telegram_bot.py | Telegram机器人 |
 
 ---
 
