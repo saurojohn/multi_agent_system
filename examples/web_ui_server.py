@@ -8,6 +8,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 import threading
 import json
 import time
+from typing import Dict, List
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
@@ -34,7 +35,7 @@ class WebUIServer:
     def start(self):
         """Start the web server."""
         self._running = True
-        self._server = HTTPServer((self.host, self.port), lambda *args: self._make_handler(*args))
+        self._server = HTTPServer((self.host, self.port), self._handler_factory)
         thread = threading.Thread(target=self._server.serve_forever, daemon=True)
         thread.start()
         print(f"Web UI Server running at http://{self.host}:{self.port}")
@@ -46,17 +47,17 @@ class WebUIServer:
         if self._server:
             self._server.shutdown()
 
-    def _make_handler(self, *args):
+    def _handler_factory(self, request, client_address, server):
         """Create request handler with access to self."""
-        return WebUIHandler(args, self)
+        return WebUIHandler(request, client_address, server, self)
 
 
 class WebUIHandler(SimpleHTTPRequestHandler):
     """Handler for web UI requests."""
 
-    def __init__(self, request, server: WebUIServer):
-        self.server = server
-        super().__init__(*request)
+    def __init__(self, request, client_address, server, ui_server: WebUIServer):
+        self.ui_server = ui_server
+        super().__init__(request, client_address, server)
 
     def do_GET(self):
         """Handle GET requests."""
@@ -69,7 +70,7 @@ class WebUIHandler(SimpleHTTPRequestHandler):
             return
 
         if path == "/api/dashboard":
-            self.send_json_response(self.server.ui_manager.get_dashboard_data())
+            self.send_json_response(self.ui_server.ui_manager.get_dashboard_data())
             return
 
         if path == "/api/agents":
@@ -91,9 +92,9 @@ class WebUIHandler(SimpleHTTPRequestHandler):
 
         if path == "/api/tasks":
             tasks = []
-            if self.server.ui_manager.orchestrator:
+            if self.ui_server.ui_manager.orchestrator:
                 try:
-                    tasks = self.server.ui_manager.orchestrator.get_all_tasks()
+                    tasks = self.ui_server.ui_manager.orchestrator.get_all_tasks()
                 except:
                     pass
             self.send_json_response({"tasks": tasks})
@@ -101,16 +102,16 @@ class WebUIHandler(SimpleHTTPRequestHandler):
 
         if path == "/api/workers":
             workers = []
-            if self.server.ui_manager.orchestrator:
+            if self.ui_server.ui_manager.orchestrator:
                 try:
-                    workers = self.server.ui_manager.orchestrator.get_workers_status()
+                    workers = self.ui_server.ui_manager.orchestrator.get_workers_status()
                 except:
                     pass
             self.send_json_response({"workers": workers})
             return
 
         if path == "/api/messages":
-            messages = self.server.ui_manager.get_messages(50)
+            messages = self.ui_server.ui_manager.get_messages(50)
             self.send_json_response({"messages": messages})
             return
 
@@ -138,7 +139,7 @@ class WebUIHandler(SimpleHTTPRequestHandler):
             task_type = data.get("type", "analysis")
             task_data = data.get("data", {})
             priority = int(data.get("priority", 2))
-            task_id = self.server.ui_manager.submit_task(task_type, task_data, priority)
+            task_id = self.ui_server.ui_manager.submit_task(task_type, task_data, priority)
             self.send_json_response({"success": True, "task_id": task_id})
             return
 
@@ -151,20 +152,20 @@ class WebUIHandler(SimpleHTTPRequestHandler):
                 enabled=data.get("enabled", True),
                 max_concurrent_tasks=data.get("max_tasks", 3)
             )
-            self.server.ui_manager.register_agent(config)
+            self.ui_server.ui_manager.register_agent(config)
             self.send_json_response({"success": True})
             return
 
         if path == "/api/agents/toggle":
             agent_id = data.get("agent_id")
             enabled = data.get("enabled", True)
-            self.server.ui_manager.update_agent(agent_id, enabled=enabled)
+            self.ui_server.ui_manager.update_agent(agent_id, enabled=enabled)
             self.send_json_response({"success": True})
             return
 
         if path == "/api/agents/delete":
             agent_id = data.get("agent_id")
-            self.server.ui_manager.delete_agent(agent_id)
+            self.ui_server.ui_manager.delete_agent(agent_id)
             self.send_json_response({"success": True})
             return
 
@@ -189,7 +190,7 @@ class WebUIHandler(SimpleHTTPRequestHandler):
         elif msg_lower.startswith("提交任务"):
             return "好的，要提交任务请访问任务管理页面，或告诉我任务类型和数据。"
         elif msg_lower in ["status", "状态"]:
-            data = self.server.ui_manager.get_dashboard_data()
+            data = self.ui_server.ui_manager.get_dashboard_data()
             return f"系统状态:\n- Agent: {data['agents']['total']}个\n- 在线Worker: {data['workers']['online']}\n- 任务: {data['tasks']['pending']}待处理, {data['tasks']['running']}运行中"
         else:
             return f"收到消息: {message} - 我会帮你处理。功能开发中..."
