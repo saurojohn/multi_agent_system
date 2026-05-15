@@ -162,6 +162,10 @@
                 <span class="nav-icon">📋</span>
                 <span>活动日志</span>
             </div>
+            <div class="nav-item" data-page="analytics">
+                <span class="nav-icon">📊</span>
+                <span>数据分析</span>
+            </div>
         </nav>
         <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border);">
             <div class="nav-item">
@@ -281,11 +285,22 @@
                 <h1>任务管理</h1>
                 <button class="btn btn-primary" onclick="showSubmitTaskModal()">+ 提交任务</button>
             </div>
+            <div style="margin-bottom: 16px; display: flex; gap: 12px; align-items: center;">
+                <div class="filter-dropdown" style="margin-bottom: 0;">
+                    <span class="filter-tag active" data-filter="all" onclick="filterTaskStatus('all')">全部</span>
+                    <span class="filter-tag" data-filter="pending" onclick="filterTaskStatus('pending')">待处理</span>
+                    <span class="filter-tag" data-filter="running" onclick="filterTaskStatus('running')">进行中</span>
+                    <span class="filter-tag" data-filter="completed" onclick="filterTaskStatus('completed')">已完成</span>
+                    <span class="filter-tag" data-filter="failed" onclick="filterTaskStatus('failed')">失败</span>
+                </div>
+                <button id="bulk-actions-btn" class="btn btn-danger btn-sm" style="display: none;" onclick="bulkCancel()">批量取消</button>
+            </div>
             <div class="card">
-                <div class="card-title">所有任务</div>
+                <div class="card-title">所有任务 <span id="task-count" style="font-weight: normal; color: var(--text-muted);">3个任务</span></div>
                 <table>
                     <thead>
                         <tr>
+                            <th style="width: 40px;"><input type="checkbox" onchange="toggleAllTasks(this)"></th>
                             <th>任务ID</th>
                             <th>类型</th>
                             <th>优先级</th>
@@ -442,33 +457,118 @@
             </div>
         </div>
 
-        <!-- Notifications Page -->
-        <div id="page-notifications" class="tab-content">
+        <!-- Analytics Page -->
+        <div id="page-analytics" class="tab-content">
             <div class="header">
-                <h1>通知中心</h1>
-                <button class="btn btn-secondary" onclick="markAllRead()">全部已读</button>
-            </div>
-            <div class="card">
-                <div class="filter-dropdown">
-                    <span class="filter-tag active" data-filter="all" onclick="filterNotifications('all')">全部</span>
-                    <span class="filter-tag" data-filter="info" onclick="filterNotifications('info')">信息</span>
-                    <span class="filter-tag" data-filter="success" onclick="filterNotifications('success')">成功</span>
-                    <span class="filter-tag" data-filter="warning" onclick="filterNotifications('warning')">警告</span>
-                    <span class="filter-tag" data-filter="error" onclick="filterNotifications('error')">错误</span>
+                <h1>数据分析</h1>
+                <div style="display: flex; gap: 8px;">
+                    <select id="analytics-period" onchange="updateAnalytics()" style="width: 150px;">
+                        <option value="24h">过去24小时</option>
+                        <option value="7d">过去7天</option>
+                        <option value="30d">过去30天</option>
+                    </select>
+                    <button class="btn btn-secondary" onclick="exportAnalytics()">📥 导出报告</button>
                 </div>
-                <div id="notification-page-list"></div>
             </div>
-        </div>
-
-        <!-- Activity Log Page -->
-        <div id="page-activity" class="tab-content">
-            <div class="header">
-                <h1>活动日志</h1>
-                <button class="btn btn-secondary" onclick="clearActivityLog()">清空日志</button>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="analytics-total-tasks">248</div>
+                    <div class="stat-label">总任务数</div>
+                </div>
+                <div class="stat-card success">
+                    <div class="stat-value" id="analytics-success-rate">94%</div>
+                    <div class="stat-label">成功率</div>
+                </div>
+                <div class="stat-card warning">
+                    <div class="stat-value" id="analytics-avg-duration">12s</div>
+                    <div class="stat-label">平均耗时</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="analytics-throughput">18/h</div>
+                    <div class="stat-label">吞吐量</div>
+                </div>
             </div>
-            <div class="card">
-                <div class="card-title">最近活动</div>
-                <div id="activity-page-list"></div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div class="card">
+                    <div class="card-title">任务类型分布</div>
+                    <div style="padding: 20px;">
+                        <div style="margin-bottom: 16px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <span>分析 (Analysis)</span>
+                                <span>32%</span>
+                            </div>
+                            <div class="progress-bar"><div class="progress-fill" style="width: 32%;"></div></div>
+                        </div>
+                        <div style="margin-bottom: 16px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <span>研究 (Research)</span>
+                                <span>28%</span>
+                            </div>
+                            <div class="progress-bar"><div class="progress-fill" style="width: 28%;"></div></div>
+                        </div>
+                        <div style="margin-bottom: 16px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <span>编码 (Coding)</span>
+                                <span>22%</span>
+                            </div>
+                            <div class="progress-bar"><div class="progress-fill" style="width: 22%;"></div></div>
+                        </div>
+                        <div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <span>其他</span>
+                                <span>18%</span>
+                            </div>
+                            <div class="progress-bar"><div class="progress-fill" style="width: 18%;"></div></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Worker性能对比</div>
+                    <table style="font-size: 13px;">
+                        <thead>
+                            <tr><th>Worker</th><th>完成任务</th><th>成功率</th><th>平均耗时</th></tr>
+                        </thead>
+                        <tbody id="worker-performance">
+                            <tr><td>worker_1</td><td>89</td><td><span class="badge badge-success">98%</span></td><td>8s</td></tr>
+                            <tr><td>worker_2</td><td>72</td><td><span class="badge badge-success">96%</span></td><td>12s</td></tr>
+                            <tr><td>worker_3</td><td>65</td><td><span class="badge badge-warning">92%</span></td><td>15s</td></tr>
+                            <tr><td>worker_5</td><td>22</td><td><span class="badge badge-success">95%</span></td><td>10s</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card" style="margin-top: 20px;">
+                <div class="card-title">任务趋势 (过去7天)</div>
+                <div style="display: flex; align-items: flex-end; gap: 8px; height: 150px; padding: 20px;">
+                    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                        <div style="height: 60px; width: 100%; background: var(--primary); border-radius: 4px;"></div>
+                        <span style="font-size: 11px; color: var(--text-muted);">周一</span>
+                    </div>
+                    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                        <div style="height: 45px; width: 100%; background: var(--primary); border-radius: 4px;"></div>
+                        <span style="font-size: 11px; color: var(--text-muted);">周二</span>
+                    </div>
+                    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                        <div style="height: 80px; width: 100%; background: var(--primary); border-radius: 4px;"></div>
+                        <span style="font-size: 11px; color: var(--text-muted);">周三</span>
+                    </div>
+                    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                        <div style="height: 70px; width: 100%; background: var(--primary); border-radius: 4px;"></div>
+                        <span style="font-size: 11px; color: var(--text-muted);">周四</span>
+                    </div>
+                    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                        <div style="height: 90px; width: 100%; background: var(--primary); border-radius: 4px;"></div>
+                        <span style="font-size: 11px; color: var(--text-muted);">周五</span>
+                    </div>
+                    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                        <div style="height: 100px; width: 100%; background: var(--success); border-radius: 4px;"></div>
+                        <span style="font-size: 11px; color: var(--text-muted);">周六</span>
+                    </div>
+                    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                        <div style="height: 55px; width: 100%; background: var(--primary); border-radius: 4px;"></div>
+                        <span style="font-size: 11px; color: var(--text-muted);">周日</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -545,6 +645,113 @@
         </div>
     </div>
 
+    <!-- View Task Modal -->
+    <div id="modal-view-task" class="modal">
+        <div class="modal-content" style="width: 600px;">
+            <div class="modal-header">
+                <h2 class="modal-title">任务详情</h2>
+                <button class="modal-close" onclick="closeModal('modal-view-task')">&times;</button>
+            </div>
+            <div style="margin-bottom: 16px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div>
+                        <label style="color: var(--text-muted); font-size: 12px;">任务ID</label>
+                        <div id="view-task-id" style="font-weight: 500;">-</div>
+                    </div>
+                    <div>
+                        <label style="color: var(--text-muted); font-size: 12px;">状态</label>
+                        <div id="view-task-status"></div>
+                    </div>
+                    <div>
+                        <label style="color: var(--text-muted); font-size: 12px;">类型</label>
+                        <div id="view-task-type">-</div>
+                    </div>
+                    <div>
+                        <label style="color: var(--text-muted); font-size: 12px;">优先级</label>
+                        <div id="view-task-priority">-</div>
+                    </div>
+                    <div>
+                        <label style="color: var(--text-muted); font-size: 12px;">Worker</label>
+                        <div id="view-task-worker">-</div>
+                    </div>
+                    <div>
+                        <label style="color: var(--text-muted); font-size: 12px;">耗时</label>
+                        <div id="view-task-duration">-</div>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>任务数据</label>
+                <pre id="view-task-data" style="background: var(--bg-card); padding: 12px; border-radius: 8px; font-size: 12px; max-height: 150px; overflow-y: auto;">{}</pre>
+            </div>
+            <div class="form-group">
+                <label>执行结果</label>
+                <pre id="view-task-result" style="background: var(--bg-card); padding: 12px; border-radius: 8px; font-size: 12px; max-height: 150px; overflow-y: auto;">-</pre>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="retryTask()">🔄 重试</button>
+                <button class="btn btn-danger" onclick="cancelTask()">❌ 取消</button>
+                <button class="btn btn-primary" onclick="closeModal('modal-view-task')">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Agent Modal -->
+    <div id="modal-edit-agent" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">编辑Agent</h2>
+                <button class="modal-close" onclick="closeModal('modal-edit-agent')">&times;</button>
+            </div>
+            <input type="hidden" id="edit-agent-id">
+            <div class="form-group">
+                <label>名称</label>
+                <input type="text" id="edit-agent-name" placeholder="Agent名称">
+            </div>
+            <div class="form-group">
+                <label>类型</label>
+                <select id="edit-agent-type">
+                    <option value="analysis">分析</option>
+                    <option value="research">研究</option>
+                    <option value="coding">编码</option>
+                    <option value="design">设计</option>
+                    <option value="data">数据</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>能力 (逗号分隔)</label>
+                <input type="text" id="edit-agent-capabilities" placeholder="analysis, data">
+            </div>
+            <div class="form-group">
+                <label>超时时间 (秒)</label>
+                <input type="number" id="edit-agent-timeout" value="300">
+            </div>
+            <div class="form-group">
+                <label>最大并发任务数</label>
+                <input type="number" id="edit-agent-max-tasks" value="3">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('modal-edit-agent')">取消</button>
+                <button class="btn btn-primary" onclick="saveAgent()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Dialog Modal -->
+    <div id="modal-confirm" class="modal">
+        <div class="modal-content" style="width: 400px;">
+            <div class="modal-header">
+                <h2 class="modal-title" id="confirm-title">确认操作</h2>
+                <button class="modal-close" onclick="closeModal('modal-confirm')">&times;</button>
+            </div>
+            <p id="confirm-message" style="margin-bottom: 24px; color: var(--text-muted);">确定要执行此操作吗？</p>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('modal-confirm')">取消</button>
+                <button class="btn btn-danger" id="confirm-btn" onclick="confirmAction()">确认</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Navigation
         document.querySelectorAll('.nav-item').forEach(item => {
@@ -561,6 +768,7 @@
                 if (page === 'agents') loadAgents();
                 if (page === 'tasks') loadTasks();
                 if (page === 'monitoring') loadMonitoring();
+                if (page === 'activity') renderActivityPage();
             });
         });
 
@@ -582,12 +790,13 @@
                             <div class="agent-type">${agent.type} · ${agent.capabilities.join(', ')}</div>
                         </div>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 16px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <button class="btn btn-secondary btn-sm" onclick="editAgent('${agent.id}')">✏️</button>
                         <label class="toggle">
                             <input type="checkbox" ${agent.enabled ? 'checked' : ''} onchange="toggleAgent('${agent.id}', this.checked)">
                             <span class="toggle-slider"></span>
                         </label>
-                        <button class="btn btn-danger btn-sm" onclick="deleteAgent('${agent.id}')">删除</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteAgent('${agent.id}')">🗑️</button>
                     </div>
                 </div>
             `).join('');
@@ -626,27 +835,60 @@
         }
 
         // Task functions
+        let currentTaskFilter = 'all';
+        let allTasks = [
+            { id: 'task_abc123', type: 'analysis', priority: 1, status: 'completed', worker: 'worker_1', created: '2分钟前' },
+            { id: 'task_def456', type: 'research', priority: 2, status: 'running', worker: 'worker_2', created: '1分钟前' },
+            { id: 'task_ghi789', type: 'coding', priority: 3, status: 'pending', worker: '-', created: '刚刚' },
+            { id: 'task_jkl012', type: 'design', priority: 2, status: 'failed', worker: 'worker_4', created: '5分钟前' },
+            { id: 'task_mno345', type: 'data', priority: 1, status: 'completed', worker: 'worker_5', created: '10分钟前' }
+        ];
+
         function loadTasks() {
-            const tasks = getTasksData();
+            const tasks = currentTaskFilter === 'all'
+                ? allTasks
+                : allTasks.filter(t => t.status === currentTaskFilter);
+            document.getElementById('task-count').textContent = `${tasks.length}个任务`;
             document.getElementById('task-list').innerHTML = tasks.map(task => `
                 <tr>
-                    <td>${task.id.substring(0, 8)}...</td>
+                    <td><input type="checkbox" onchange="toggleTaskSelection('${task.id}')" ${selectedTasks.has(task.id) ? 'checked' : ''}></td>
+                    <td class="tooltip" data-tip="${task.id}">${task.id.substring(0, 8)}...</td>
                     <td>${task.type}</td>
                     <td><span class="badge badge-primary">P${task.priority}</span></td>
                     <td><span class="badge badge-${task.status === 'completed' ? 'success' : task.status === 'failed' ? 'danger' : 'warning'}">${task.status}</span></td>
                     <td>${task.worker || '-'}</td>
                     <td>${task.created}</td>
-                    <td><button class="btn btn-secondary btn-sm" onclick="viewTask('${task.id}')">查看</button></td>
+                    <td>
+                        <button class="btn btn-secondary btn-sm" onclick="viewTask('${task.id}')">👁️</button>
+                        ${task.status === 'failed' ? '<button class="btn btn-primary btn-sm" onclick="retrySingleTask(\'' + task.id + '\')">🔄</button>' : ''}
+                    </td>
                 </tr>
             `).join('');
         }
 
+        function filterTaskStatus(filter) {
+            currentTaskFilter = filter;
+            document.querySelectorAll('.filter-tag').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            loadTasks();
+        }
+
+        function toggleAllTasks(checkbox) {
+            if (checkbox.checked) {
+                allTasks.forEach(t => selectedTasks.add(t.id));
+            } else {
+                selectedTasks.clear();
+            }
+            loadTasks();
+            updateBulkActions();
+        }
+
+        function retrySingleTask(id) {
+            showToast(`任务 ${id.substring(0, 8)}... 已重新提交`, 'info');
+        }
+
         function getTasksData() {
-            return [
-                { id: 'task_abc123', type: 'analysis', priority: 1, status: 'completed', worker: 'worker_1', created: '2分钟前' },
-                { id: 'task_def456', type: 'research', priority: 2, status: 'running', worker: 'worker_2', created: '1分钟前' },
-                { id: 'task_ghi789', type: 'coding', priority: 3, status: 'pending', worker: '-', created: '刚刚' }
-            ];
+            return allTasks;
         }
 
         function submitTask() {
@@ -659,7 +901,64 @@
         }
 
         function viewTask(id) {
-            alert('查看任务: ' + id);
+            const task = getTasksData().find(t => t.id === id) || {
+                id: id,
+                type: 'analysis',
+                priority: 2,
+                status: 'completed',
+                worker: 'worker_1',
+                created: '刚刚'
+            };
+            document.getElementById('view-task-id').textContent = id;
+            document.getElementById('view-task-type').textContent = task.type;
+            document.getElementById('view-task-priority').innerHTML = `<span class="badge badge-primary">P${task.priority}</span>`;
+            document.getElementById('view-task-status').innerHTML = `<span class="badge badge-${task.status === 'completed' ? 'success' : task.status === 'failed' ? 'danger' : 'warning'}">${task.status}</span>`;
+            document.getElementById('view-task-worker').textContent = task.worker || '-';
+            document.getElementById('view-task-duration').textContent = '12s';
+            document.getElementById('view-task-data').textContent = JSON.stringify({"query": "sales data"}, null, 2);
+            document.getElementById('view-task-result').textContent = JSON.stringify({"result": "分析完成", "status": "success"}, null, 2);
+            document.getElementById('modal-view-task').classList.add('show');
+        }
+
+        function retryTask() {
+            showToast('任务已重新提交', 'info');
+            closeModal('modal-view-task');
+        }
+
+        function cancelTask() {
+            showConfirm('确定要取消这个任务吗?', () => {
+                showToast('任务已取消', 'warning');
+                closeModal('modal-view-task');
+            });
+        }
+
+        function showConfirm(message, callback) {
+            document.getElementById('confirm-message').textContent = message;
+            window.confirmCallback = callback;
+            document.getElementById('modal-confirm').classList.add('show');
+        }
+
+        function confirmAction() {
+            if (window.confirmCallback) window.confirmCallback();
+            closeModal('modal-confirm');
+        }
+
+        function editAgent(id) {
+            const agent = getAgentsData().find(a => a.id === id);
+            if (!agent) return;
+            document.getElementById('edit-agent-id').value = id;
+            document.getElementById('edit-agent-name').value = agent.name;
+            document.getElementById('edit-agent-type').value = agent.type;
+            document.getElementById('edit-agent-capabilities').value = agent.capabilities.join(', ');
+            document.getElementById('edit-agent-timeout').value = '300';
+            document.getElementById('edit-agent-max-tasks').value = '3';
+            document.getElementById('modal-edit-agent').classList.add('show');
+        }
+
+        function saveAgent() {
+            showToast('Agent配置已保存', 'success');
+            closeModal('modal-edit-agent');
+            loadAgents();
         }
 
         // Chat functions
@@ -705,14 +1004,18 @@
 
         // Settings functions
         function saveSettings() {
-            alert('设置已保存!');
+            showToast('设置已保存!', 'success');
         }
 
         function resetSettings() {
             document.getElementById('setting-name').value = 'Multi-Agent System';
             document.getElementById('setting-timeout').value = '300';
             document.getElementById('setting-max-tasks').value = '5';
-            alert('设置已重置');
+            document.getElementById('setting-queue-type').value = 'memory';
+            document.getElementById('setting-heartbeat').value = '30';
+            document.getElementById('setting-alerts').checked = true;
+            document.getElementById('setting-fail-threshold').value = '3';
+            showToast('设置已重置', 'info');
         }
 
         // Monitoring
@@ -749,8 +1052,74 @@
         loadDashboard();
         setInterval(loadDashboard, 30000);
 
-        // Notifications
-        let notifications = [
+        // Analytics
+        function updateAnalytics() {
+            const period = document.getElementById('analytics-period').value;
+            showToast(`已切换到${period}数据视图`, 'info');
+        }
+
+        function exportAnalytics() {
+            showToast('报告导出中...', 'info');
+            setTimeout(() => showToast('报告已导出', 'success'), 1500);
+        }
+
+        // Bulk Task Actions
+        let selectedTasks = new Set();
+
+        function toggleTaskSelection(taskId) {
+            if (selectedTasks.has(taskId)) {
+                selectedTasks.delete(taskId);
+            } else {
+                selectedTasks.add(taskId);
+            }
+            updateBulkActions();
+        }
+
+        function updateBulkActions() {
+            const bulkBtn = document.getElementById('bulk-actions-btn');
+            if (bulkBtn) {
+                bulkBtn.style.display = selectedTasks.size > 0 ? 'inline-flex' : 'none';
+                bulkBtn.textContent = `已选择 ${selectedTasks.size} 个任务`;
+            }
+        }
+
+        function bulkCancel() {
+            if (confirm(`确定要取消选中的 ${selectedTasks.size} 个任务吗?`)) {
+                showToast(`已取消 ${selectedTasks.size} 个任务`, 'warning');
+                selectedTasks.clear();
+                loadTasks();
+            }
+        }
+
+        function bulkRetry() {
+            showToast(`正在重试 ${selectedTasks.size} 个任务`, 'info');
+            selectedTasks.clear();
+            loadTasks();
+        }
+
+        // Auto-refresh for monitoring
+        let monitoringInterval;
+
+        function startMonitoringRefresh() {
+            monitoringInterval = setInterval(loadMonitoring, 10000);
+        }
+
+        function stopMonitoringRefresh() {
+            if (monitoringInterval) clearInterval(monitoringInterval);
+        }
+
+        // Theme toggle
+        function toggleTheme() {
+            document.body.classList.toggle('light-theme');
+            showToast('主题已切换', 'info');
+        }
+
+        // Initialize
+        updateNotificationBadge();
+        renderActivityLog();
+        renderActivityPage();
+        startMonitoringRefresh();
+    </script>
             { id: '1', title: '任务完成', message: 'task_abc123 已完成', level: 'success', time: '2分钟前', read: false },
             { id: '2', title: 'Worker离线', message: 'worker_4 已断开连接', level: 'warning', time: '5分钟前', read: false },
             { id: '3', title: '新任务', message: '收到新任务 task_def456', level: 'info', time: '1分钟前', read: false },
