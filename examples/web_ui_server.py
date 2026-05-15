@@ -8,9 +8,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 import threading
 import json
 import time
+import logging
 from typing import Dict, List
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
+
+logger = logging.getLogger('web_ui_server')
 
 from multi_agent_system.common.queue import MessageQueueManager
 from multi_agent_system.orchestrator.core import Orchestrator
@@ -74,20 +77,47 @@ class WebUIHandler(SimpleHTTPRequestHandler):
             return
 
         if path == "/api/agents":
-            self.send_json_response({
-                "agents": [
-                    {"agent_id": "worker_1", "name": "分析Agent", "type": "analysis",
-                     "capabilities": ["analysis"], "enabled": True},
-                    {"agent_id": "worker_2", "name": "研究Agent", "type": "research",
-                     "capabilities": ["research"], "enabled": True},
-                    {"agent_id": "worker_3", "name": "编码Agent", "type": "coding",
-                     "capabilities": ["coding"], "enabled": True},
-                    {"agent_id": "worker_4", "name": "设计Agent", "type": "design",
-                     "capabilities": ["design"], "enabled": False},
-                    {"agent_id": "worker_5", "name": "数据Agent", "type": "data",
-                     "capabilities": ["data"], "enabled": True}
-                ]
-            })
+            # Get agents from orchestrator workers
+            agents = []
+            if self.ui_server.ui_manager.orchestrator:
+                try:
+                    workers = self.ui_server.ui_manager.orchestrator.get_workers_status()
+                    for w in workers:
+                        worker_id = w.get('worker_id', '')
+                        # Extract type from worker_id or use default
+                        if 'worker_1' in worker_id or 'analysis' in worker_id.lower():
+                            agent_type = 'analysis'
+                            name = '分析Agent'
+                        elif 'worker_2' in worker_id or 'research' in worker_id.lower():
+                            agent_type = 'research'
+                            name = '研究Agent'
+                        elif 'worker_3' in worker_id or 'coding' in worker_id.lower():
+                            agent_type = 'coding'
+                            name = '编码Agent'
+                        elif 'worker_4' in worker_id or 'design' in worker_id.lower():
+                            agent_type = 'design'
+                            name = '设计Agent'
+                        elif 'worker_5' in worker_id or 'data' in worker_id.lower():
+                            agent_type = 'data'
+                            name = '数据Agent'
+                        else:
+                            agent_type = worker_id.replace('worker_', '') or 'unknown'
+                            name = f'{agent_type.title()} Agent'
+
+                        agents.append({
+                            "agent_id": worker_id,
+                            "name": name,
+                            "type": agent_type,
+                            "capabilities": [agent_type],
+                            "enabled": w.get('status') == 'online'
+                        })
+                except Exception as e:
+                    logger.error(f"Error getting agents: {e}")
+            self.send_json_response({"agents": agents or [
+                {"agent_id": "worker_1", "name": "分析Agent", "type": "analysis", "capabilities": ["analysis"], "enabled": True},
+                {"agent_id": "worker_2", "name": "研究Agent", "type": "research", "capabilities": ["research"], "enabled": True},
+                {"agent_id": "worker_3", "name": "编码Agent", "type": "coding", "capabilities": ["coding"], "enabled": True}
+            ]})
             return
 
         if path == "/api/tasks":
@@ -95,8 +125,8 @@ class WebUIHandler(SimpleHTTPRequestHandler):
             if self.ui_server.ui_manager.orchestrator:
                 try:
                     tasks = self.ui_server.ui_manager.orchestrator.get_all_tasks()
-                except:
-                    pass
+                except Exception as e:
+                    logger.error(f"Error getting tasks: {e}")
             self.send_json_response({"tasks": tasks})
             return
 
@@ -144,28 +174,62 @@ class WebUIHandler(SimpleHTTPRequestHandler):
             return
 
         if path == "/api/agents/add":
-            config = AgentConfig(
-                agent_id=data.get("agent_id"),
-                name=data.get("name"),
-                agent_type=data.get("type"),
-                capabilities=data.get("capabilities", []),
-                enabled=data.get("enabled", True),
-                max_concurrent_tasks=data.get("max_tasks", 3)
+            from multi_agent_system.worker.agent import WorkerAgent
+            agent_id = data.get("agent_id")
+            name = data.get("name")
+            agent_type = data.get("type", "analysis")
+            capabilities = data.get("capabilities", [agent_type])
+
+            # Create and register the worker
+            worker = WorkerAgent(
+                worker_id=agent_id,
+                worker_type=agent_type.title(),
+                capabilities=capabilities,
+                mq=self.ui_server.ui_manager.orchestrator.mq
             )
-            self.ui_server.ui_manager.register_agent(config)
-            self.send_json_response({"success": True})
+
+            # Register default handlers based on type
+            if "analysis" in capabilities:
+                worker.register_handler("analysis", lambda d: {"result": f"分析完成: {d.get('query', '')}"})
+            if "research" in capabilities:
+                worker.register_handler("research", lambda d: {"result": f"研究完成: {d.get('topic', '')}"})
+            if "coding" in capabilities:
+                worker.register_handler("coding", lambda d: {"result": f"编码完成: {d.get('code', '')}"})
+            if "design" in capabilities:
+                worker.register_handler("design", lambda d: {"result": f"设计完成: {d.get('spec', '')}"})
+            if "data" in capabilities:
+                worker.register_handler("data", lambda d: {"result": f"数据处理完成: {d.get('dataset', '')}"})
+
+            worker.start()
+
+            # Store worker reference
+            self.ui_server.ui_manager._workers = getattr(self.ui_server.ui_manager, '_workers', {})
+            self.ui_server.ui_manager._workers[agent_id] = worker
+
+            self.send_json_response({"success": True, "agent_id": agent_id})
             return
 
         if path == "/api/agents/toggle":
             agent_id = data.get("agent_id")
             enabled = data.get("enabled", True)
-            self.ui_server.ui_manager.update_agent(agent_id, enabled=enabled)
+
+            # Toggle worker status in orchestrator
+            if self.ui_server.ui_manager.orchestrator and agent_id in self.ui_server.ui_manager.orchestrator.workers:
+                worker_info = self.ui_server.ui_manager.orchestrator.workers[agent_id]
+                worker_info.status = "online" if enabled else "offline"
+
             self.send_json_response({"success": True})
             return
 
         if path == "/api/agents/delete":
             agent_id = data.get("agent_id")
-            self.ui_server.ui_manager.delete_agent(agent_id)
+
+            # Stop and remove the worker
+            workers = getattr(self.ui_server.ui_manager, '_workers', {})
+            if agent_id in workers:
+                workers[agent_id].stop()
+                del workers[agent_id]
+
             self.send_json_response({"success": True})
             return
 

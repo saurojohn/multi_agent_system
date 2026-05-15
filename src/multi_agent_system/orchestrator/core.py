@@ -689,3 +689,40 @@ class Orchestrator:
                 }
                 for w in self.workers.values()
             ]
+
+    def get_all_tasks(self) -> List[Dict]:
+        """Get all tasks."""
+        with self._lock:
+            return [
+                {
+                    "task_id": t.task_id,
+                    "task_type": t.task_type,
+                    "priority": t.priority,
+                    "status": t.status,
+                    "assigned_worker": t.assigned_worker,
+                    "created_at": t.created_at,
+                    "error": t.error
+                }
+                for t in self.tasks.values()
+            ]
+
+    def get_task(self, task_id: str) -> Optional[Dict]:
+        """Get a specific task."""
+        with self._lock:
+            if task_id in self.tasks:
+                t = self.tasks[task_id]
+                return {
+                    "task_id": t.task_id,
+                    "task_type": t.task_type,
+                    "task_data": t.task_data,
+                    "priority": t.priority,
+                    "status": t.status,
+                    "assigned_worker": t.assigned_worker,
+                    "created_at": t.created_at,
+                    "started_at": t.started_at,
+                    "completed_at": t.completed_at,
+                    "result": t.result,
+                    "error": t.error,
+                    "retry_count": t.retry_count
+                }
+        return None
