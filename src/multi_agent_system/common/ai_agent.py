@@ -49,14 +49,14 @@ class AIConfig:
 
 class AIResponse:
     """AI API response wrapper."""
-    def __init__(self, content: str, provider: str, model: str, usage: Dict = None, raw: Any = None):
+    def __init__(self, content: str, provider: str, model: str, usage: Dict = None, raw: Any = None, success: bool = True, error: str = None):
         self.content = content
         self.provider = provider
         self.model = model
         self.usage = usage or {}
         self.raw = raw
-        self.success = True
-        self.error: Optional[str] = None
+        self.success = success
+        self.error = error
 
 
 class AIAgent:
