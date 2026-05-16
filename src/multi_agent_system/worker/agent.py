@@ -91,9 +91,12 @@ class WorkerAgent:
         task_id = msg.payload.get("task_id")
         task_type = msg.payload.get("task_type")
 
-        # Skip if this worker isn't the intended target (check before lock to avoid wasted work)
-        if msg.target != "*" and msg.target != self.worker_id:
-            return
+        # Handle broadcast messages (target="*") - only process if worker has capability
+        if msg.target == "*":
+            if task_type not in self.capabilities:
+                return  # Worker doesn't have this capability
+        elif msg.target != self.worker_id:
+            return  # Not for this worker
 
         with self._lock:
             # Skip if already processing this task
