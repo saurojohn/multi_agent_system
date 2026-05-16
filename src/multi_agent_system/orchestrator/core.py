@@ -64,8 +64,8 @@ class WorkerInfo:
 
 class Orchestrator:
     def __init__(self, mq: MessageQueueManager,
-                 heartbeat_interval: int = 10,
-                 heartbeat_timeout: int = 30,
+                 heartbeat_interval: int = 15,
+                 heartbeat_timeout: int = 120,
                  max_task_retries: int = 3,
                  event_callback=None,
                  dead_letter_callback=None,
@@ -240,9 +240,14 @@ class Orchestrator:
 
     def _message_processor(self):
         while self._running:
-            msg = self.mq.dequeue(QueueType.WORKER_TO_ORCHESTRATOR.value, timeout=1.0)
+            # Check both queues for messages
+            msg = self.mq.dequeue(QueueType.WORKER_TO_ORCHESTRATOR.value, timeout=0.5)
             if msg:
                 self._handle_message(msg)
+            # Also check heartbeat queue
+            heartbeat_msg = self.mq.dequeue(QueueType.WORKER_HEARTBEAT.value, timeout=0.1)
+            if heartbeat_msg:
+                self._handle_message(heartbeat_msg)
 
     def _handle_message(self, msg: Message):
         handlers = {
@@ -392,7 +397,12 @@ class Orchestrator:
         worker_id = msg.payload.get("worker_id")
         with self._lock:
             if worker_id in self.workers:
-                self.workers[worker_id].last_heartbeat = time.time()
+                worker = self.workers[worker_id]
+                worker.last_heartbeat = time.time()
+                # Re-activate offline workers when they send heartbeat
+                if worker.status == "offline":
+                    worker.status = "online"
+                    logger.info(f'Worker {worker_id} reactivated')
                 logger.debug(f'Heartbeat received from {worker_id}')
 
     def _handle_error(self, msg: Message):
