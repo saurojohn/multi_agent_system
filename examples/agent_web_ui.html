@@ -1184,20 +1184,20 @@
             const apiKeyInput = document.getElementById('agent-ai-api-key');
 
             const modelPlaceholders = {
-                'openai': 'gpt-4o, gpt-4, gpt-4-turbo',
-                'anthropic': 'claude-3-5-sonnet, claude-3-opus, claude-3-haiku',
-                'minimax': 'abab6.5s-chat, abab5.5s-chat',
-                'deepseek': 'deepseek-chat, deepseek-coder',
-                'zhipu': 'glm-4, glm-4-flash, glm-3-turbo',
-                'ollama': 'llama3, mistral, codellama'
+                'openai': 'o1-preview, o1-mini, gpt-4o, gpt-4o1, gpt-4-turbo',
+                'anthropic': 'claude-sonnet-4-5, claude-opus-4, claude-3-5-sonnet, claude-3-5-haiku',
+                'minimax': 'MiniMax-M2.7, MiniMax-M2.5, MiniMax-M2.1, abab6.5s-chat',
+                'deepseek': 'deepseek-chat, deepseek-coder, deepseek-v3',
+                'zhipu': 'glm-4-alltools, glm-4, glm-4-flash, glm-3-turbo',
+                'ollama': 'llama3.3, mistral, codellama, qwen2.5'
             };
 
             const apiKeyPlaceholders = {
                 'openai': 'sk-...',
                 'anthropic': 'sk-ant-...',
-                'minimax': 'MTK...',
+                'minimax': '从MiniMax开放平台获取',
                 'deepseek': 'sk-...',
-                'zhipu': 'your-zhipu-api-key',
+                'zhipu': '从智谱AI开放平台获取',
                 'ollama': '不需要API Key (本地)'
             };
 

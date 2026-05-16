@@ -227,12 +227,12 @@ worker.start()
 ```
 
 **支持的AI提供商 / Supported AI Providers:**
-- OpenAI (gpt-4, gpt-4o, gpt-4-turbo)
-- Anthropic (claude-3-5-sonnet, claude-3-opus, claude-3-haiku)
-- Minimax (abab6.5s-chat, abab5.5s-chat)
-- DeepSeek (deepseek-chat, deepseek-coder)
-- 智谱AI/Zhipu (glm-4, glm-4-flash)
-- Ollama (llama3, mistral - 本地/Local)
+- OpenAI (o1-preview, o1-mini, gpt-4o, gpt-4o1, gpt-4-turbo)
+- Anthropic (claude-sonnet-4-5, claude-opus-4, claude-3-5-sonnet, claude-3-5-haiku)
+- Minimax (MiniMax-M2.7, MiniMax-M2.5, MiniMax-M2.1, abab6.5s-chat)
+- DeepSeek (deepseek-chat, deepseek-coder, deepseek-v3)
+- 智谱AI/Zhipu (glm-4-alltools, glm-4, glm-4-flash, glm-3-turbo)
+- Ollama (llama3.3, mistral, codellama, qwen2.5 - 本地/Local)
 
 ---
 
