@@ -331,10 +331,21 @@ class WebUIHandler(SimpleHTTPRequestHandler):
 
             # Get AI config
             ai_config = getattr(self.ui_server, '_ai_config', {}) or {}
+
+            # Check if API key is configured
+            api_key = ai_config.get('api_key', '')
+            if not api_key:
+                self.send_json_response({
+                    "error": "请先在设置中配置AI API Key",
+                    "provider": ai_config.get('provider', 'openai'),
+                    "model": ai_config.get('model', 'gpt-4o')
+                })
+                return
+
             config = AIConfig(
                 provider=AIProvider(ai_config.get('provider', 'openai')),
-                api_key=ai_config.get('api_key', ''),
-                model=ai_config.get('model', 'gpt-4'),
+                api_key=api_key,
+                model=ai_config.get('model', 'gpt-4o'),
                 base_url=ai_config.get('base_url', '')
             )
 
@@ -369,8 +380,33 @@ class WebUIHandler(SimpleHTTPRequestHandler):
 
         if path == "/api/chat":
             message = data.get("message", "")
-            response = self._process_chat(message)
-            self.send_json_response({"response": response})
+
+            # Check if AI is configured for chat
+            ai_config = getattr(self.ui_server, '_ai_config', {}) or {}
+            api_key = ai_config.get('api_key', '')
+
+            if api_key and message:
+                # Use AI chat
+                try:
+                    from multi_agent_system.common.ai_agent import AIAgent, AIConfig, AIProvider, AIChatSession
+                    config = AIConfig(
+                        provider=AIProvider(ai_config.get('provider', 'openai')),
+                        api_key=api_key,
+                        model=ai_config.get('model', 'gpt-4o'),
+                        base_url=ai_config.get('base_url', '')
+                    )
+                    agent = AIAgent(config)
+                    response = agent.chat([{"role": "user", "content": message}])
+                    if response.success:
+                        self.send_json_response({"response": response.content})
+                    else:
+                        self.send_json_response({"response": f"AI错误: {response.error}"})
+                except Exception as e:
+                    self.send_json_response({"response": f"AI错误: {str(e)}"})
+            else:
+                # Use simple chatbot
+                response = self._process_chat(message)
+                self.send_json_response({"response": response})
             return
 
         if path == "/api/telegram/configure":
