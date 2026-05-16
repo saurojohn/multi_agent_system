@@ -77,8 +77,10 @@ class WebUIHandler(SimpleHTTPRequestHandler):
             return
 
         if path == "/api/agents":
-            # Get agents from orchestrator workers
+            # Get agents from orchestrator workers and UI-managed workers
             agents = []
+            ui_workers = getattr(self.ui_server.ui_manager, '_workers', {}) or {}
+
             if self.ui_server.ui_manager.orchestrator:
                 try:
                     workers = self.ui_server.ui_manager.orchestrator.get_workers_status()
@@ -104,15 +106,42 @@ class WebUIHandler(SimpleHTTPRequestHandler):
                             agent_type = worker_id.replace('worker_', '') or 'unknown'
                             name = f'{agent_type.title()} Agent'
 
+                        # Check if this worker has AI config
+                        ai_provider = None
+                        ai_model = None
+                        if worker_id in ui_workers:
+                            wobj = ui_workers[worker_id]
+                            ai_provider = getattr(wobj, '_ai_provider', None)
+                            ai_model = getattr(wobj, '_ai_model', None)
+
                         agents.append({
                             "agent_id": worker_id,
                             "name": name,
                             "type": agent_type,
                             "capabilities": [agent_type],
-                            "enabled": w.get('status') == 'online'
+                            "enabled": w.get('status') == 'online',
+                            "ai_provider": ai_provider,
+                            "ai_model": ai_model
                         })
                 except Exception as e:
                     logger.error(f"Error getting agents: {e}")
+
+            # Also add agents from UI-managed workers that are not in orchestrator
+            for wid, wobj in ui_workers.items():
+                if not any(a['agent_id'] == wid for a in agents):
+                    agent_type = getattr(wobj, '_agent_type', 'unknown')
+                    name = getattr(wobj, '_name', wid)
+                    ai_provider = getattr(wobj, '_ai_provider', None)
+                    ai_model = getattr(wobj, '_ai_model', None)
+                    agents.append({
+                        "agent_id": wid,
+                        "name": name,
+                        "type": agent_type,
+                        "capabilities": wobj.capabilities if hasattr(wobj, 'capabilities') else [agent_type],
+                        "enabled": True,
+                        "ai_provider": ai_provider,
+                        "ai_model": ai_model
+                    })
             self.send_json_response({"agents": agents or [
                 {"agent_id": "worker_1", "name": "分析Agent", "type": "analysis", "capabilities": ["analysis"], "enabled": True},
                 {"agent_id": "worker_2", "name": "研究Agent", "type": "research", "capabilities": ["research"], "enabled": True},
@@ -175,10 +204,15 @@ class WebUIHandler(SimpleHTTPRequestHandler):
 
         if path == "/api/agents/add":
             from multi_agent_system.worker.agent import WorkerAgent
+            from multi_agent_system.common.ai_agent import AIAgent, AIConfig, AIProvider, create_ai_handler
+
             agent_id = data.get("agent_id")
             name = data.get("name")
             agent_type = data.get("type", "analysis")
             capabilities = data.get("capabilities", [agent_type])
+            ai_provider = data.get("ai_provider", "") or None
+            ai_model = data.get("ai_model", "") or None
+            ai_api_key = data.get("ai_api_key", "") or None
 
             # Create and register the worker
             worker = WorkerAgent(
@@ -188,17 +222,59 @@ class WebUIHandler(SimpleHTTPRequestHandler):
                 mq=self.ui_server.ui_manager.orchestrator.mq
             )
 
-            # Register default handlers based on type
-            if "analysis" in capabilities:
-                worker.register_handler("analysis", lambda d: {"result": f"分析完成: {d.get('query', '')}"})
-            if "research" in capabilities:
-                worker.register_handler("research", lambda d: {"result": f"研究完成: {d.get('topic', '')}"})
-            if "coding" in capabilities:
-                worker.register_handler("coding", lambda d: {"result": f"编码完成: {d.get('code', '')}"})
-            if "design" in capabilities:
-                worker.register_handler("design", lambda d: {"result": f"设计完成: {d.get('spec', '')}"})
-            if "data" in capabilities:
-                worker.register_handler("data", lambda d: {"result": f"数据处理完成: {d.get('dataset', '')}"})
+            # Use AI handler if provider is specified
+            if ai_provider:
+                try:
+                    # Get global AI config as base
+                    global_ai_config = getattr(self.ui_server, '_ai_config', {}) or {}
+                    # Agent-specific API key takes priority over global
+                    config_api_key = ai_api_key if ai_api_key else global_ai_config.get('api_key', '')
+                    config_base_url = global_ai_config.get('base_url', '')
+
+                    # Set provider-specific default base URLs
+                    if ai_provider == 'minimax' and not config_base_url:
+                        config_base_url = "https://api.minimax.chat/v1"
+                    elif ai_provider == 'deepseek' and not config_base_url:
+                        config_base_url = "https://api.deepseek.com/v1"
+                    elif ai_provider == 'zhipu' and not config_base_url:
+                        config_base_url = "https://open.bigmodel.cn/api/paas/v4"
+
+                    ai_config = AIConfig(
+                        provider=AIProvider(ai_provider),
+                        api_key=config_api_key,
+                        model=ai_model or global_ai_config.get('model', 'gpt-4'),
+                        base_url=config_base_url
+                    )
+                    ai_handler = create_ai_handler(ai_config)
+
+                    # Register AI handler for all capabilities
+                    for cap in capabilities:
+                        worker.register_handler(cap, ai_handler)
+
+                    logger.info(f"Registered AI handler for {agent_id}: {ai_provider}/{ai_model or 'default'}")
+                except Exception as e:
+                    logger.error(f"Error creating AI handler for {agent_id}: {e}")
+                    # Fallback to default handlers
+                    for cap in capabilities:
+                        worker.register_handler(cap, lambda d: {"result": f"处理完成: {d}"})
+            else:
+                # Register default handlers based on type
+                if "analysis" in capabilities:
+                    worker.register_handler("analysis", lambda d: {"result": f"分析完成: {d.get('query', '')}"})
+                if "research" in capabilities:
+                    worker.register_handler("research", lambda d: {"result": f"研究完成: {d.get('topic', '')}"})
+                if "coding" in capabilities:
+                    worker.register_handler("coding", lambda d: {"result": f"编码完成: {d.get('code', '')}"})
+                if "design" in capabilities:
+                    worker.register_handler("design", lambda d: {"result": f"设计完成: {d.get('spec', '')}"})
+                if "data" in capabilities:
+                    worker.register_handler("data", lambda d: {"result": f"数据处理完成: {d.get('dataset', '')}"})
+
+            # Store AI config on worker object for API display
+            worker._ai_provider = ai_provider
+            worker._ai_model = ai_model
+            worker._agent_type = agent_type
+            worker._name = name
 
             worker.start()
 
@@ -206,7 +282,7 @@ class WebUIHandler(SimpleHTTPRequestHandler):
             self.ui_server.ui_manager._workers = getattr(self.ui_server.ui_manager, '_workers', {})
             self.ui_server.ui_manager._workers[agent_id] = worker
 
-            self.send_json_response({"success": True, "agent_id": agent_id})
+            self.send_json_response({"success": True, "agent_id": agent_id, "ai_provider": ai_provider, "ai_model": ai_model})
             return
 
         if path == "/api/agents/toggle":
@@ -233,10 +309,143 @@ class WebUIHandler(SimpleHTTPRequestHandler):
             self.send_json_response({"success": True})
             return
 
+        if path == "/api/ai/configure":
+            provider = data.get("provider", "openai")
+            api_key = data.get("api_key", "")
+            model = data.get("model", "gpt-4")
+            base_url = data.get("base_url", "")
+
+            # Store AI config
+            if not hasattr(self.ui_server, '_ai_config'):
+                self.ui_server._ai_config = {}
+            self.ui_server._ai_config['provider'] = provider
+            self.ui_server._ai_config['api_key'] = api_key
+            self.ui_server._ai_config['model'] = model
+            self.ui_server._ai_config['base_url'] = base_url
+
+            self.send_json_response({"success": True, "message": "AI配置已更新"})
+            return
+
+        if path == "/api/ai/chat":
+            from multi_agent_system.common.ai_agent import AIAgent, AIConfig, AIProvider, AIChatSession
+
+            # Get AI config
+            ai_config = getattr(self.ui_server, '_ai_config', {}) or {}
+            config = AIConfig(
+                provider=AIProvider(ai_config.get('provider', 'openai')),
+                api_key=ai_config.get('api_key', ''),
+                model=ai_config.get('model', 'gpt-4'),
+                base_url=ai_config.get('base_url', '')
+            )
+
+            message = data.get("message", "")
+            session_id = data.get("session_id")
+
+            if not hasattr(self.ui_server, '_chat_sessions'):
+                self.ui_server._chat_sessions = {}
+
+            if session_id and session_id in self.ui_server._chat_sessions:
+                session = self.ui_server._chat_sessions[session_id]
+            else:
+                session = AIChatSession(AIAgent(config))
+                session_id = f"sess_{int(time.time())}"
+                self.ui_server._chat_sessions[session_id] = session
+
+            response = session.send(message)
+
+            if response.success:
+                self.send_json_response({
+                    "response": response.content,
+                    "session_id": session_id,
+                    "provider": response.provider,
+                    "model": response.model
+                })
+            else:
+                self.send_json_response({
+                    "error": response.error,
+                    "session_id": session_id
+                })
+            return
+
         if path == "/api/chat":
             message = data.get("message", "")
             response = self._process_chat(message)
             self.send_json_response({"response": response})
+            return
+
+        if path == "/api/telegram/configure":
+            token = data.get("token", "")
+            action = data.get("action", "configure")
+
+            if not token:
+                self.send_json_response({"success": False, "error": "Token is required"})
+                return
+
+            try:
+                from multi_agent_system.common.telegram_bot import TelegramBot
+
+                if not hasattr(self.ui_server, '_telegram_bot'):
+                    self.ui_server._telegram_bot = None
+                if not hasattr(self.ui_server, '_telegram_thread'):
+                    self.ui_server._telegram_thread = None
+
+                if action == "test":
+                    # Test the token by sending a simple request
+                    import urllib.request
+                    test_url = f"https://api.telegram.org/bot{token}/getMe"
+                    try:
+                        with urllib.request.urlopen(test_url, timeout=10) as response:
+                            result = json.loads(response.read().decode())
+                            if result.get("ok"):
+                                self.send_json_response({"success": True, "message": "连接成功", "connected": True, "bot_name": result.get("result", {}).get("username", "")})
+                            else:
+                                self.send_json_response({"success": False, "error": "无效Token", "connected": False})
+                    except Exception as e:
+                        self.send_json_response({"success": False, "error": f"连接失败: {str(e)}", "connected": False})
+                    return
+
+                # Configure and start
+                self.ui_server._telegram_bot = TelegramBot(token=token)
+                self.ui_server._telegram_bot.set_orchestrator(self.ui_server.ui_manager.orchestrator)
+
+                # Start bot in background thread
+                def run_telegram():
+                    self.ui_server._telegram_bot.start(polling=True)
+                self.ui_server._telegram_thread = threading.Thread(target=run_telegram, daemon=True)
+                self.ui_server._telegram_thread.start()
+
+                self.send_json_response({"success": True, "message": "Telegram Bot已启动", "running": True})
+            except Exception as e:
+                logger.error(f"Telegram configure error: {e}")
+                self.send_json_response({"success": False, "error": str(e)})
+            return
+
+        if path == "/api/telegram/start":
+            try:
+                if hasattr(self.ui_server, '_telegram_bot') and self.ui_server._telegram_bot:
+                    if self.ui_server._telegram_bot._running:
+                        self.send_json_response({"success": True, "message": "Telegram Bot已在运行"})
+                        return
+                    def run_telegram():
+                        self.ui_server._telegram_bot.start(polling=True)
+                    self.ui_server._telegram_thread = threading.Thread(target=run_telegram, daemon=True)
+                    self.ui_server._telegram_thread.start()
+                    self.send_json_response({"success": True, "message": "Telegram Bot已启动"})
+                else:
+                    self.send_json_response({"success": False, "error": "请先配置Telegram Bot"})
+            except Exception as e:
+                self.send_json_response({"success": False, "error": str(e)})
+            return
+
+        if path == "/api/telegram/stop":
+            try:
+                if hasattr(self.ui_server, '_telegram_bot') and self.ui_server._telegram_bot:
+                    self.ui_server._telegram_bot.stop()
+                    self.ui_server._telegram_bot = None
+                    self.ui_server._telegram_thread = None
+                self.send_json_response({"success": True, "message": "Telegram Bot已停止"})
+            except Exception as e:
+                self.send_json_response({"success": False, "error": str(e)})
             return
 
         self.send_error(404, "Not Found")

@@ -124,6 +124,9 @@
         .tooltip { position: relative; }
         .tooltip::after { content: attr(data-tip); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); padding: 6px 12px; background: var(--bg-card); border-radius: 6px; font-size: 12px; white-space: nowrap; display: none; }
         .tooltip:hover::after { display: block; }
+        .lang-switch { display: flex; gap: 4px; background: var(--bg-card); border-radius: 8px; padding: 4px; }
+        .lang-btn { padding: 6px 12px; border-radius: 6px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; font-size: 12px; font-weight: 500; }
+        .lang-btn.active { background: var(--primary); color: white; }
     </style>
 </head>
 <body>
@@ -132,45 +135,45 @@
         <nav>
             <div class="nav-item active" data-page="dashboard">
                 <span class="nav-icon">📊</span>
-                <span>仪表盘</span>
+                <span data-i18n="nav.dashboard">仪表盘</span>
             </div>
             <div class="nav-item" data-page="agents">
                 <span class="nav-icon">🤖</span>
-                <span>Agent设置</span>
+                <span data-i18n="nav.agents">Agent设置</span>
             </div>
             <div class="nav-item" data-page="tasks">
                 <span class="nav-icon">📋</span>
-                <span>任务管理</span>
+                <span data-i18n="nav.tasks">任务管理</span>
             </div>
             <div class="nav-item" data-page="messages">
                 <span class="nav-icon">💬</span>
-                <span>消息交流</span>
+                <span data-i18n="nav.messages">消息交流</span>
             </div>
             <div class="nav-item" data-page="monitoring">
                 <span class="nav-icon">📈</span>
-                <span>系统监控</span>
+                <span data-i18n="nav.monitoring">系统监控</span>
             </div>
             <div class="nav-item" data-page="settings">
                 <span class="nav-icon">⚙️</span>
-                <span>系统设置</span>
+                <span data-i18n="nav.settings">系统设置</span>
             </div>
             <div class="nav-item" data-page="notifications">
                 <span class="nav-icon">🔔</span>
-                <span>通知中心</span>
+                <span data-i18n="nav.notifications">通知中心</span>
             </div>
             <div class="nav-item" data-page="activity">
                 <span class="nav-icon">📋</span>
-                <span>活动日志</span>
+                <span data-i18n="nav.activity">活动日志</span>
             </div>
             <div class="nav-item" data-page="analytics">
                 <span class="nav-icon">📊</span>
-                <span>数据分析</span>
+                <span data-i18n="nav.analytics">数据分析</span>
             </div>
         </nav>
         <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border);">
             <div class="nav-item">
                 <span class="nav-icon">👤</span>
-                <span>管理员</span>
+                <span data-i18n="nav.admin">管理员</span>
             </div>
         </div>
     </div>
@@ -179,8 +182,8 @@
         <!-- Notification Dropdown -->
         <div class="notification-dropdown" id="notification-dropdown">
             <div style="padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-weight: 600;">通知</span>
-                <button class="btn btn-sm btn-secondary" onclick="markAllRead()">全部已读</button>
+                <span style="font-weight: 600;" data-i18n="notifications.title">通知</span>
+                <button class="btn btn-sm btn-secondary" onclick="markAllRead()" data-i18n="notifications.markAll">全部已读</button>
             </div>
             <div id="notification-list"></div>
         </div>
@@ -188,52 +191,56 @@
         <!-- Dashboard Page -->
         <div id="page-dashboard" class="tab-content active">
             <div class="header">
-                <h1>仪表盘</h1>
+                <h1 data-i18n="nav.dashboard">仪表盘</h1>
                 <div style="display: flex; gap: 12px; align-items: center;">
+                    <div class="lang-switch">
+                        <button class="lang-btn active" data-lang="zh">中文</button>
+                        <button class="lang-btn" data-lang="en">EN</button>
+                    </div>
                     <div class="notification-bell" onclick="toggleNotifications()">
                         🔔
                         <span class="notification-badge" id="notification-count">3</span>
                     </div>
                     <div class="refresh-indicator">
                         <span class="refresh-dot"></span>
-                        <span>实时更新</span>
+                        <span data-i18n="dashboard.liveUpdate">实时更新</span>
                     </div>
                 </div>
             </div>
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-value" id="stat-agents">0</div>
-                    <div class="stat-label">Agent总数</div>
+                    <div class="stat-label" data-i18n="dashboard.agentsTotal">Agent总数</div>
                 </div>
                 <div class="stat-card success">
                     <div class="stat-value" id="stat-workers-online">0</div>
-                    <div class="stat-label">在线Worker</div>
+                    <div class="stat-label" data-i18n="dashboard.workersOnline">在线Worker</div>
                 </div>
                 <div class="stat-card warning">
                     <div class="stat-value" id="stat-tasks-pending">0</div>
-                    <div class="stat-label">待处理任务</div>
+                    <div class="stat-label" data-i18n="dashboard.tasksPending">待处理任务</div>
                 </div>
                 <div class="stat-card danger">
                     <div class="stat-value" id="stat-tasks-failed">0</div>
-                    <div class="stat-label">失败任务</div>
+                    <div class="stat-label" data-i18n="dashboard.tasksFailed">失败任务</div>
                 </div>
             </div>
             <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px;">
                 <div class="card">
-                    <div class="card-title">最近任务</div>
+                    <div class="card-title" data-i18n="dashboard.recentTasks">最近任务</div>
                     <div class="search-box">
-                        <input type="text" placeholder="搜索任务..." id="task-search" oninput="filterTasks()">
+                        <input type="text" data-i18n-placeholder="tasks.search" placeholder="搜索任务..." id="task-search" oninput="filterTasks()">
                         <button class="btn btn-secondary">🔍</button>
                     </div>
                     <table>
                         <thead>
                             <tr>
-                                <th>任务ID</th>
-                                <th>类型</th>
-                                <th>状态</th>
-                                <th>优先级</th>
-                                <th>时间</th>
-                                <th>操作</th>
+                                <th data-i18n="tasks.id">任务ID</th>
+                                <th data-i18n="tasks.type">类型</th>
+                                <th data-i18n="tasks.status">状态</th>
+                                <th data-i18n="tasks.priority">优先级</th>
+                                <th data-i18n="tasks.time">时间</th>
+                                <th data-i18n="tasks.action">操作</th>
                             </tr>
                         </thead>
                         <tbody id="recent-tasks">
@@ -242,28 +249,28 @@
                 </div>
                 <div>
                     <div class="card" style="margin-bottom: 20px;">
-                        <div class="card-title">系统状态</div>
+                        <div class="card-title" data-i18n="dashboard.systemStatus">系统状态</div>
                         <div style="padding: 20px 0;">
                             <div style="display: flex; justify-content: space-between; margin-bottom: 16px;">
-                                <span>Orchestrator</span>
-                                <span class="badge badge-success">运行中</span>
+                                <span data-i18n="system.orchestrator">Orchestrator</span>
+                                <span class="badge badge-success" data-i18n="status.running">运行中</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; margin-bottom: 16px;">
-                                <span>消息队列</span>
-                                <span class="badge badge-success">正常</span>
+                                <span data-i18n="system.queue">消息队列</span>
+                                <span class="badge badge-success" data-i18n="status.normal">正常</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; margin-bottom: 16px;">
-                                <span>Worker注册</span>
+                                <span data-i18n="system.workerReg">Worker注册</span>
                                 <span class="badge badge-primary" id="worker-status">0/0</span>
                             </div>
                             <div style="display: flex; justify-content: space-between;">
-                                <span>系统版本</span>
+                                <span data-i18n="system.version">系统版本</span>
                                 <span class="badge badge-primary">v1.0.0</span>
                             </div>
                         </div>
                     </div>
                     <div class="card">
-                        <div class="card-title">活动日志</div>
+                        <div class="card-title" data-i18n="dashboard.activityLog">活动日志</div>
                         <div id="activity-log"></div>
                     </div>
                 </div>
@@ -273,8 +280,8 @@
         <!-- Agents Page -->
         <div id="page-agents" class="tab-content">
             <div class="header">
-                <h1>Agent设置</h1>
-                <button class="btn btn-primary" onclick="showAddAgentModal()">+ 添加Agent</button>
+                <h1 data-i18n="nav.agents">Agent设置</h1>
+                <button class="btn btn-primary" onclick="showAddAgentModal()">+ <span data-i18n="agents.add">添加Agent</span></button>
             </div>
             <div id="agent-list"></div>
         </div>
@@ -282,32 +289,32 @@
         <!-- Tasks Page -->
         <div id="page-tasks" class="tab-content">
             <div class="header">
-                <h1>任务管理</h1>
-                <button class="btn btn-primary" onclick="showSubmitTaskModal()">+ 提交任务</button>
+                <h1 data-i18n="nav.tasks">任务管理</h1>
+                <button class="btn btn-primary" onclick="showSubmitTaskModal()">+ <span data-i18n="tasks.submit">提交任务</span></button>
             </div>
             <div style="margin-bottom: 16px; display: flex; gap: 12px; align-items: center;">
                 <div class="filter-dropdown" style="margin-bottom: 0;">
-                    <span class="filter-tag active" data-filter="all" onclick="filterTaskStatus('all')">全部</span>
-                    <span class="filter-tag" data-filter="pending" onclick="filterTaskStatus('pending')">待处理</span>
-                    <span class="filter-tag" data-filter="running" onclick="filterTaskStatus('running')">进行中</span>
-                    <span class="filter-tag" data-filter="completed" onclick="filterTaskStatus('completed')">已完成</span>
-                    <span class="filter-tag" data-filter="failed" onclick="filterTaskStatus('failed')">失败</span>
+                    <span class="filter-tag active" data-filter="all" onclick="filterTaskStatus('all')" data-i18n="tasks.all">全部</span>
+                    <span class="filter-tag" data-filter="pending" onclick="filterTaskStatus('pending')" data-i18n="tasks.pending">待处理</span>
+                    <span class="filter-tag" data-filter="running" onclick="filterTaskStatus('running')" data-i18n="tasks.running">进行中</span>
+                    <span class="filter-tag" data-filter="completed" onclick="filterTaskStatus('completed')" data-i18n="tasks.completed">已完成</span>
+                    <span class="filter-tag" data-filter="failed" onclick="filterTaskStatus('failed')" data-i18n="tasks.failed">失败</span>
                 </div>
-                <button id="bulk-actions-btn" class="btn btn-danger btn-sm" style="display: none;" onclick="bulkCancel()">批量取消</button>
+                <button id="bulk-actions-btn" class="btn btn-danger btn-sm" style="display: none;" onclick="bulkCancel()" data-i18n="tasks.bulkCancel">批量取消</button>
             </div>
             <div class="card">
-                <div class="card-title">所有任务 <span id="task-count" style="font-weight: normal; color: var(--text-muted);">3个任务</span></div>
+                <div class="card-title" data-i18n="tasks.all">所有任务</div>
                 <table>
                     <thead>
                         <tr>
                             <th style="width: 40px;"><input type="checkbox" onchange="toggleAllTasks(this)"></th>
-                            <th>任务ID</th>
-                            <th>类型</th>
-                            <th>优先级</th>
-                            <th>状态</th>
-                            <th>Worker</th>
-                            <th>创建时间</th>
-                            <th>操作</th>
+                            <th data-i18n="tasks.id">任务ID</th>
+                            <th data-i18n="tasks.type">类型</th>
+                            <th data-i18n="tasks.priority">优先级</th>
+                            <th data-i18n="tasks.status">状态</th>
+                            <th data-i18n="tasks.worker">Worker</th>
+                            <th data-i18n="tasks.created">创建时间</th>
+                            <th data-i18n="tasks.action">操作</th>
                         </tr>
                     </thead>
                     <tbody id="task-list">
@@ -319,21 +326,21 @@
         <!-- Messages Page -->
         <div id="page-messages" class="tab-content">
             <div class="header">
-                <h1>消息交流</h1>
-                <button class="btn btn-secondary" onclick="clearChat()">清空</button>
+                <h1 data-i18n="nav.messages">消息交流</h1>
+                <button class="btn btn-secondary" onclick="clearChat()" data-i18n="chat.clear">清空</button>
             </div>
             <div class="card">
-                <div class="card-title">与Agent对话</div>
+                <div class="card-title" data-i18n="chat.title">与Agent对话</div>
                 <div class="chat-container">
                     <div class="chat-messages" id="chat-messages">
                         <div class="chat-message agent">
-                            <div>你好！我是你的AI助手。有什么我可以帮助你的吗？</div>
+                            <div data-i18n="chat.welcome">你好！我是你的AI助手。有什么我可以帮助你的吗？</div>
                             <div class="message-meta">系统 · 刚刚</div>
                         </div>
                     </div>
                     <div class="chat-input">
-                        <input type="text" id="chat-input" placeholder="输入消息..." onkeypress="handleChatKeypress(event)">
-                        <button class="btn btn-primary" onclick="sendChatMessage()">发送</button>
+                        <input type="text" id="chat-input" data-i18n-placeholder="chat.placeholder" placeholder="输入消息..." onkeypress="handleChatKeypress(event)">
+                        <button class="btn btn-primary" onclick="sendChatMessage()" data-i18n="chat.send">发送</button>
                     </div>
                 </div>
             </div>
@@ -342,36 +349,36 @@
         <!-- Monitoring Page -->
         <div id="page-monitoring" class="tab-content">
             <div class="header">
-                <h1>系统监控</h1>
+                <h1 data-i18n="nav.monitoring">系统监控</h1>
             </div>
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-value" id="mon-workers-total">0</div>
-                    <div class="stat-label">总Worker数</div>
+                    <div class="stat-label" data-i18n="monitoring.workersTotal">总Worker数</div>
                 </div>
                 <div class="stat-card success">
                     <div class="stat-value" id="mon-workers-online">0</div>
-                    <div class="stat-label">在线</div>
+                    <div class="stat-label" data-i18n="monitoring.online">在线</div>
                 </div>
                 <div class="stat-card warning">
                     <div class="stat-value" id="mon-tasks-running">0</div>
-                    <div class="stat-label">运行中</div>
+                    <div class="stat-label" data-i18n="monitoring.running">运行中</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value" id="mon-tasks-completed">0</div>
-                    <div class="stat-label">已完成</div>
+                    <div class="stat-label" data-i18n="monitoring.completed">已完成</div>
                 </div>
             </div>
             <div class="card">
-                <div class="card-title">Worker状态</div>
+                <div class="card-title" data-i18n="monitoring.workerStatus">Worker状态</div>
                 <table>
                     <thead>
                         <tr>
                             <th>Worker ID</th>
-                            <th>类型</th>
-                            <th>状态</th>
-                            <th>能力</th>
-                            <th>最后心跳</th>
+                            <th data-i18n="tasks.type">类型</th>
+                            <th data-i18n="tasks.status">状态</th>
+                            <th data-i18n="form.capabilities">能力</th>
+                            <th data-i18n="monitoring.lastHeartbeat">最后心跳</th>
                         </tr>
                     </thead>
                     <tbody id="worker-list">
@@ -383,59 +390,59 @@
         <!-- Settings Page -->
         <div id="page-settings" class="tab-content">
             <div class="header">
-                <h1>系统设置</h1>
+                <h1 data-i18n="nav.settings">系统设置</h1>
             </div>
             <div class="card">
                 <div class="settings-section">
-                    <h3>通用设置</h3>
+                    <h3 data-i18n="settings.general">通用设置</h3>
                     <div class="setting-item">
                         <div>
-                            <div class="setting-label">系统名称</div>
-                            <div class="setting-desc">显示在界面顶部的名称</div>
+                            <div class="setting-label" data-i18n="settings.systemName">系统名称</div>
+                            <div class="setting-desc" data-i18n="settings.systemNameDesc">显示在界面顶部的名称</div>
                         </div>
                         <input type="text" id="setting-name" value="Multi-Agent System" style="width: 200px;">
                     </div>
                     <div class="setting-item">
                         <div>
-                            <div class="setting-label">默认超时时间</div>
-                            <div class="setting-desc">任务执行的默认超时时间(秒)</div>
+                            <div class="setting-label" data-i18n="settings.defaultTimeout">默认超时时间</div>
+                            <div class="setting-desc" data-i18n="settings.defaultTimeoutDesc">任务执行的默认超时时间(秒)</div>
                         </div>
                         <input type="number" id="setting-timeout" value="300" style="width: 100px;">
                     </div>
                     <div class="setting-item">
                         <div>
-                            <div class="setting-label">最大并发任务数</div>
-                            <div class="setting-desc">每个Worker最大并发任务数</div>
+                            <div class="setting-label" data-i18n="settings.maxConcurrent">最大并发任务数</div>
+                            <div class="setting-desc" data-i18n="settings.maxConcurrentDesc">每个Worker最大并发任务数</div>
                         </div>
                         <input type="number" id="setting-max-tasks" value="5" style="width: 100px;">
                     </div>
                 </div>
                 <div class="settings-section">
-                    <h3>消息队列</h3>
+                    <h3 data-i18n="settings.queueType">消息队列</h3>
                     <div class="setting-item">
                         <div>
-                            <div class="setting-label">队列类型</div>
-                            <div class="setting-desc">消息队列的实现类型</div>
+                            <div class="setting-label" data-i18n="settings.queueType">队列类型</div>
+                            <div class="setting-desc" data-i18n="settings.queueTypeDesc">消息队列的实现类型</div>
                         </div>
                         <select id="setting-queue-type" style="width: 150px;">
-                            <option value="memory">内存队列</option>
-                            <option value="redis">Redis队列</option>
+                            <option value="memory" data-i18n="settings.queueMemory">内存队列</option>
+                            <option value="redis" data-i18n="settings.queueRedis">Redis队列</option>
                         </select>
                     </div>
                     <div class="setting-item">
                         <div>
-                            <div class="setting-label">Heartbeat间隔</div>
-                            <div class="setting-desc">Worker心跳检测间隔(秒)</div>
+                            <div class="setting-label" data-i18n="settings.heartbeatInterval">Heartbeat间隔</div>
+                            <div class="setting-desc" data-i18n="settings.heartbeatIntervalDesc">Worker心跳检测间隔(秒)</div>
                         </div>
                         <input type="number" id="setting-heartbeat" value="30" style="width: 100px;">
                     </div>
                 </div>
                 <div class="settings-section">
-                    <h3>告警设置</h3>
+                    <h3 data-i18n="settings.alerts">告警设置</h3>
                     <div class="setting-item">
                         <div>
-                            <div class="setting-label">启用告警通知</div>
-                            <div class="setting-desc">任务失败时发送告警通知</div>
+                            <div class="setting-label" data-i18n="settings.enableAlerts">启用告警通知</div>
+                            <div class="setting-desc" data-i18n="settings.enableAlertsDesc">任务失败时发送告警通知</div>
                         </div>
                         <label class="toggle">
                             <input type="checkbox" id="setting-alerts" checked>
@@ -444,15 +451,142 @@
                     </div>
                     <div class="setting-item">
                         <div>
-                            <div class="setting-label">失败阈值</div>
-                            <div class="setting-desc">触发告警的连续失败次数</div>
+                            <div class="setting-label" data-i18n="settings.failThreshold">失败阈值</div>
+                            <div class="setting-desc" data-i18n="settings.failThresholdDesc">触发告警的连续失败次数</div>
                         </div>
                         <input type="number" id="setting-fail-threshold" value="3" style="width: 100px;">
                     </div>
                 </div>
                 <div style="margin-top: 20px;">
-                    <button class="btn btn-primary" onclick="saveSettings()">保存设置</button>
-                    <button class="btn btn-secondary" style="margin-left: 12px;" onclick="resetSettings()">重置</button>
+                    <button class="btn btn-primary" onclick="saveSettings()" data-i18n="btn.saveSettings">保存设置</button>
+                    <button class="btn btn-secondary" style="margin-left: 12px;" onclick="resetSettings()" data-i18n="btn.reset">重置</button>
+                </div>
+            </div>
+            <div class="card" style="margin-top: 20px;">
+                <div class="settings-section">
+                    <h3 data-i18n="settings.telegramBot">Telegram Bot配置</h3>
+                    <div class="setting-item">
+                        <div>
+                            <div class="setting-label" data-i18n="settings.telegramToken">Bot Token</div>
+                            <div class="setting-desc" data-i18n="settings.telegramTokenDesc">从 @BotFather 获取的Token</div>
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="password" id="setting-telegram-token" placeholder="123456:ABC-DEF..." style="width: 280px;">
+                            <button class="btn btn-sm btn-secondary" onclick="testTelegram()" data-i18n="btn.testTelegram">测试连接</button>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <div>
+                            <div class="setting-label" data-i18n="settings.telegramStatus">状态</div>
+                            <div class="setting-desc" data-i18n="settings.telegramStatusDesc">Telegram Bot运行状态</div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span id="telegram-status" class="badge badge-secondary">未配置</span>
+                            <button class="btn btn-sm btn-primary" onclick="toggleTelegram()" id="btn-toggle-telegram" data-i18n="btn.startTelegram">启动Bot</button>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <div>
+                            <div class="setting-label" data-i18n="settings.telegramCommands">可用命令</div>
+                            <div class="setting-desc" data-i18n="settings.telegramCommandsDesc">在Telegram中可使用的命令</div>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-muted);">
+                            /start /help /status /submit /list /result /cancel
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analytics Page -->
+                    <div class="setting-item">
+                        <div>
+                            <div class="setting-label" data-i18n="settings.aiProvider">AI提供商</div>
+                            <div class="setting-desc" data-i18n="settings.aiProviderDesc">选择AI服务提供商</div>
+                        </div>
+                        <select id="setting-ai-provider" style="width: 180px;" onchange="updateAIModels()">
+                            <option value="openai">OpenAI</option>
+                            <option value="anthropic">Anthropic</option>
+                            <option value="minimax">Minimax</option>
+                            <option value="deepseek">DeepSeek</option>
+                            <option value="zhipu">智谱AI</option>
+                            <option value="ollama">Ollama (本地)</option>
+                            <option value="custom">自定义API</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <div>
+                            <div class="setting-label" data-i18n="settings.aiModel">AI模型</div>
+                            <div class="setting-desc" data-i18n="settings.aiModelDesc">选择或输入模型名称</div>
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <select id="setting-ai-model-select" style="width: 180px;" onchange="if(this.value!=='custom')document.getElementById('setting-ai-model').value=this.value">
+                                <optgroup label="OpenAI">
+                                    <option value="gpt-4o">GPT-4o (最新)</option>
+                                    <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                                    <option value="gpt-4">GPT-4</option>
+                                    <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                                </optgroup>
+                                <optgroup label="Anthropic">
+                                    <option value="claude-opus-4-20250514">Claude Opus 4</option>
+                                    <option value="claude-sonnet-4-20250514">Claude Sonnet 4</option>
+                                    <option value="claude-haiku-4-20250507">Claude Haiku 4</option>
+                                    <option value="claude-3-opus">Claude 3 Opus</option>
+                                    <option value="claude-3-sonnet">Claude 3 Sonnet</option>
+                                    <option value="claude-3-haiku">Claude 3 Haiku</option>
+                                </optgroup>
+                                <optgroup label="Ollama">
+                                    <option value="llama3">Llama 3</option>
+                                    <option value="llama3.1">Llama 3.1</option>
+                                    <option value="mistral">Mistral</option>
+                                    <option value="mixtral">Mixtral</option>
+                                    <option value="codellama">CodeLlama</option>
+                                    <option value="qwen2">Qwen 2</option>
+                                    <option value="phi3">Phi-3</option>
+                                    <option value="gemma2">Gemma 2</option>
+                                    <option value="stablelm2">StableLM 2</option>
+                                </optgroup>
+                                <optgroup label="Minimax">
+                                    <option value="abab6.5s-chat">abab6.5s-chat</option>
+                                    <option value="abab6.5-chat">abab6.5-chat</option>
+                                    <option value="abab5.5-chat">abab5.5-chat</option>
+                                </optgroup>
+                                <optgroup label="DeepSeek">
+                                    <option value="deepseek-chat">DeepSeek Chat</option>
+                                    <option value="deepseek-coder">DeepSeek Coder</option>
+                                    <option value="deepseek-v2.5">DeepSeek V2.5</option>
+                                    <option value="deepseek-v2">DeepSeek V2</option>
+                                </optgroup>
+                                <optgroup label="智谱AI">
+                                    <option value="glm-4">GLM-4</option>
+                                    <option value="glm-4-flash">GLM-4 Flash</option>
+                                    <option value="glm-4-plus">GLM-4 Plus</option>
+                                    <option value="glm-3-turbo">GLM-3 Turbo</option>
+                                    <option value="chatglm-turbo">ChatGLM Turbo</option>
+                                </optgroup>
+                                <option value="custom">自定义...</option>
+                            </select>
+                            <input type="text" id="setting-ai-model" value="gpt-4o" style="width: 120px;" placeholder="自定义模型">
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <div>
+                            <div class="setting-label" data-i18n="settings.aiApiKey">API Key</div>
+                            <div class="setting-desc" data-i18n="settings.aiApiKeyDesc">输入AI服务的API密钥</div>
+                        </div>
+                        <input type="password" id="setting-ai-api-key" placeholder="sk-..." style="width: 250px;">
+                    </div>
+                    <div class="setting-item">
+                        <div>
+                            <div class="setting-label" data-i18n="settings.aiBaseUrl">API地址</div>
+                            <div class="setting-desc" data-i18n="settings.aiBaseUrlDesc">自定义API地址(可选)</div>
+                        </div>
+                        <input type="text" id="setting-ai-base-url" placeholder="https://api.openai.com/v1" style="width: 250px;">
+                    </div>
+                </div>
+                <div style="margin-top: 20px;">
+                    <button class="btn btn-primary" onclick="saveAISettings()" data-i18n="btn.saveAI">保存AI配置</button>
+                    <button class="btn btn-secondary" style="margin-left: 12px;" onclick="testAIConnection()" data-i18n="btn.testAI">测试连接</button>
                 </div>
             </div>
         </div>
@@ -460,37 +594,37 @@
         <!-- Analytics Page -->
         <div id="page-analytics" class="tab-content">
             <div class="header">
-                <h1>数据分析</h1>
+                <h1 data-i18n="analytics.title">数据分析</h1>
                 <div style="display: flex; gap: 8px;">
                     <select id="analytics-period" onchange="updateAnalytics()" style="width: 150px;">
-                        <option value="24h">过去24小时</option>
-                        <option value="7d">过去7天</option>
-                        <option value="30d">过去30天</option>
+                        <option value="24h" data-i18n="analytics.period24h">过去24小时</option>
+                        <option value="7d" data-i18n="analytics.period7d">过去7天</option>
+                        <option value="30d" data-i18n="analytics.period30d">过去30天</option>
                     </select>
-                    <button class="btn btn-secondary" onclick="exportAnalytics()">📥 导出报告</button>
+                    <button class="btn btn-secondary" onclick="exportAnalytics()">📥 <span data-i18n="analytics.export">导出报告</span></button>
                 </div>
             </div>
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-value" id="analytics-total-tasks">248</div>
-                    <div class="stat-label">总任务数</div>
+                    <div class="stat-label" data-i18n="analytics.totalTasks">总任务数</div>
                 </div>
                 <div class="stat-card success">
                     <div class="stat-value" id="analytics-success-rate">94%</div>
-                    <div class="stat-label">成功率</div>
+                    <div class="stat-label" data-i18n="analytics.successRate">成功率</div>
                 </div>
                 <div class="stat-card warning">
                     <div class="stat-value" id="analytics-avg-duration">12s</div>
-                    <div class="stat-label">平均耗时</div>
+                    <div class="stat-label" data-i18n="analytics.avgDuration">平均耗时</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value" id="analytics-throughput">18/h</div>
-                    <div class="stat-label">吞吐量</div>
+                    <div class="stat-label" data-i18n="analytics.throughput">吞吐量</div>
                 </div>
             </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                 <div class="card">
-                    <div class="card-title">任务类型分布</div>
+                    <div class="card-title" data-i18n="analytics.taskDistribution">任务类型分布</div>
                     <div style="padding: 20px;">
                         <div style="margin-bottom: 16px;">
                             <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
@@ -523,10 +657,10 @@
                     </div>
                 </div>
                 <div class="card">
-                    <div class="card-title">Worker性能对比</div>
+                    <div class="card-title" data-i18n="analytics.workerPerformance">Worker性能对比</div>
                     <table style="font-size: 13px;">
                         <thead>
-                            <tr><th>Worker</th><th>完成任务</th><th>成功率</th><th>平均耗时</th></tr>
+                            <tr><th>Worker</th><th data-i18n="monitoring.completed">完成任务</th><th data-i18n="analytics.successRate">成功率</th><th data-i18n="analytics.avgDuration">平均耗时</th></tr>
                         </thead>
                         <tbody id="worker-performance">
                             <tr><td>worker_1</td><td>89</td><td><span class="badge badge-success">98%</span></td><td>8s</td></tr>
@@ -538,7 +672,7 @@
                 </div>
             </div>
             <div class="card" style="margin-top: 20px;">
-                <div class="card-title">任务趋势 (过去7天)</div>
+                <div class="card-title" data-i18n="analytics.taskTrend">任务趋势 (过去7天)</div>
                 <div style="display: flex; align-items: flex-end; gap: 8px; height: 150px; padding: 20px;">
                     <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
                         <div style="height: 60px; width: 100%; background: var(--primary); border-radius: 4px;"></div>
@@ -577,19 +711,19 @@
     <div id="modal-add-agent" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 class="modal-title">添加Agent</h2>
+                <h2 class="modal-title" data-i18n="modal.addAgent">添加Agent</h2>
                 <button class="modal-close" onclick="closeModal('modal-add-agent')">&times;</button>
             </div>
             <div class="form-group">
-                <label>Agent ID</label>
+                <label data-i18n="form.agentId">Agent ID</label>
                 <input type="text" id="agent-id" placeholder="agent_1">
             </div>
             <div class="form-group">
-                <label>名称</label>
+                <label data-i18n="form.name">名称</label>
                 <input type="text" id="agent-name" placeholder="分析Agent">
             </div>
             <div class="form-group">
-                <label>类型</label>
+                <label data-i18n="form.type">类型</label>
                 <select id="agent-type">
                     <option value="analysis">分析</option>
                     <option value="research">研究</option>
@@ -599,16 +733,36 @@
                 </select>
             </div>
             <div class="form-group">
-                <label>能力 (逗号分隔)</label>
+                <label data-i18n="form.capabilities">能力 (逗号分隔)</label>
                 <input type="text" id="agent-capabilities" placeholder="analysis, data">
             </div>
             <div class="form-group">
-                <label>最大并发任务数</label>
+                <label data-i18n="form.aiProvider">AI提供商</label>
+                <select id="agent-ai-provider" style="width: 100%;" onchange="updateModelPlaceholder()">
+                    <option value="">使用系统默认</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="anthropic">Anthropic</option>
+                    <option value="minimax">Minimax</option>
+                    <option value="deepseek">DeepSeek</option>
+                    <option value="zhipu">智谱AI</option>
+                    <option value="ollama">Ollama (本地)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label data-i18n="form.aiModel">AI模型</label>
+                <input type="text" id="agent-ai-model" placeholder="选择提供商后查看建议模型" style="width: 100%;">
+            </div>
+            <div class="form-group">
+                <label data-i18n="form.aiApiKey">API Key</label>
+                <input type="password" id="agent-ai-api-key" placeholder="sk-... (可选，如不填使用系统默认)" style="width: 100%;">
+            </div>
+            <div class="form-group">
+                <label data-i18n="form.maxTasks">最大并发任务数</label>
                 <input type="number" id="agent-max-tasks" value="3">
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('modal-add-agent')">取消</button>
-                <button class="btn btn-primary" onclick="addAgent()">添加</button>
+                <button class="btn btn-secondary" onclick="closeModal('modal-add-agent')" data-i18n="btn.cancel">取消</button>
+                <button class="btn btn-primary" onclick="addAgent()" data-i18n="btn.add">添加</button>
             </div>
         </div>
     </div>
@@ -617,11 +771,11 @@
     <div id="modal-submit-task" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 class="modal-title">提交任务</h2>
+                <h2 class="modal-title" data-i18n="modal.submitTask">提交任务</h2>
                 <button class="modal-close" onclick="closeModal('modal-submit-task')">&times;</button>
             </div>
             <div class="form-group">
-                <label>任务类型</label>
+                <label data-i18n="form.taskType">任务类型</label>
                 <select id="task-type">
                     <option value="analysis">分析</option>
                     <option value="research">研究</option>
@@ -631,16 +785,16 @@
                 </select>
             </div>
             <div class="form-group">
-                <label>任务数据 (JSON)</label>
+                <label data-i18n="form.taskData">任务数据 (JSON)</label>
                 <textarea id="task-data" placeholder='{"query": "分析销售数据"}'>{}</textarea>
             </div>
             <div class="form-group">
-                <label>优先级 (1-5, 1最高)</label>
+                <label data-i18n="form.priority">优先级 (1-5, 1最高)</label>
                 <input type="number" id="task-priority" value="2" min="1" max="5">
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('modal-submit-task')">取消</button>
-                <button class="btn btn-primary" onclick="submitTask()">提交</button>
+                <button class="btn btn-secondary" onclick="closeModal('modal-submit-task')" data-i18n="btn.cancel">取消</button>
+                <button class="btn btn-primary" onclick="submitTask()" data-i18n="btn.submit">提交</button>
             </div>
         </div>
     </div>
@@ -649,49 +803,49 @@
     <div id="modal-view-task" class="modal">
         <div class="modal-content" style="width: 600px;">
             <div class="modal-header">
-                <h2 class="modal-title">任务详情</h2>
+                <h2 class="modal-title" data-i18n="modal.taskDetails">任务详情</h2>
                 <button class="modal-close" onclick="closeModal('modal-view-task')">&times;</button>
             </div>
             <div style="margin-bottom: 16px;">
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                     <div>
-                        <label style="color: var(--text-muted); font-size: 12px;">任务ID</label>
+                        <label style="color: var(--text-muted); font-size: 12px;" data-i18n="tasks.id">任务ID</label>
                         <div id="view-task-id" style="font-weight: 500;">-</div>
                     </div>
                     <div>
-                        <label style="color: var(--text-muted); font-size: 12px;">状态</label>
+                        <label style="color: var(--text-muted); font-size: 12px;" data-i18n="tasks.status">状态</label>
                         <div id="view-task-status"></div>
                     </div>
                     <div>
-                        <label style="color: var(--text-muted); font-size: 12px;">类型</label>
+                        <label style="color: var(--text-muted); font-size: 12px;" data-i18n="tasks.type">类型</label>
                         <div id="view-task-type">-</div>
                     </div>
                     <div>
-                        <label style="color: var(--text-muted); font-size: 12px;">优先级</label>
+                        <label style="color: var(--text-muted); font-size: 12px;" data-i18n="tasks.priority">优先级</label>
                         <div id="view-task-priority">-</div>
                     </div>
                     <div>
-                        <label style="color: var(--text-muted); font-size: 12px;">Worker</label>
+                        <label style="color: var(--text-muted); font-size: 12px;" data-i18n="tasks.worker">Worker</label>
                         <div id="view-task-worker">-</div>
                     </div>
                     <div>
-                        <label style="color: var(--text-muted); font-size: 12px;">耗时</label>
+                        <label style="color: var(--text-muted); font-size: 12px;" data-i18n="task.duration">耗时</label>
                         <div id="view-task-duration">-</div>
                     </div>
                 </div>
             </div>
             <div class="form-group">
-                <label>任务数据</label>
+                <label data-i18n="task.taskData">任务数据</label>
                 <pre id="view-task-data" style="background: var(--bg-card); padding: 12px; border-radius: 8px; font-size: 12px; max-height: 150px; overflow-y: auto;">{}</pre>
             </div>
             <div class="form-group">
-                <label>执行结果</label>
+                <label data-i18n="task.result">执行结果</label>
                 <pre id="view-task-result" style="background: var(--bg-card); padding: 12px; border-radius: 8px; font-size: 12px; max-height: 150px; overflow-y: auto;">-</pre>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="retryTask()">🔄 重试</button>
-                <button class="btn btn-danger" onclick="cancelTask()">❌ 取消</button>
-                <button class="btn btn-primary" onclick="closeModal('modal-view-task')">关闭</button>
+                <button class="btn btn-secondary" onclick="retryTask()" data-i18n="task.retry">🔄 重试</button>
+                <button class="btn btn-danger" onclick="cancelTask()" data-i18n="task.cancel">❌ 取消</button>
+                <button class="btn btn-primary" onclick="closeModal('modal-view-task')" data-i18n="btn.close">关闭</button>
             </div>
         </div>
     </div>
@@ -700,16 +854,16 @@
     <div id="modal-edit-agent" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 class="modal-title">编辑Agent</h2>
+                <h2 class="modal-title" data-i18n="modal.editAgent">编辑Agent</h2>
                 <button class="modal-close" onclick="closeModal('modal-edit-agent')">&times;</button>
             </div>
             <input type="hidden" id="edit-agent-id">
             <div class="form-group">
-                <label>名称</label>
+                <label data-i18n="form.name">名称</label>
                 <input type="text" id="edit-agent-name" placeholder="Agent名称">
             </div>
             <div class="form-group">
-                <label>类型</label>
+                <label data-i18n="form.type">类型</label>
                 <select id="edit-agent-type">
                     <option value="analysis">分析</option>
                     <option value="research">研究</option>
@@ -719,20 +873,20 @@
                 </select>
             </div>
             <div class="form-group">
-                <label>能力 (逗号分隔)</label>
+                <label data-i18n="form.capabilities">能力 (逗号分隔)</label>
                 <input type="text" id="edit-agent-capabilities" placeholder="analysis, data">
             </div>
             <div class="form-group">
-                <label>超时时间 (秒)</label>
+                <label data-i18n="form.timeout">超时时间 (秒)</label>
                 <input type="number" id="edit-agent-timeout" value="300">
             </div>
             <div class="form-group">
-                <label>最大并发任务数</label>
+                <label data-i18n="form.maxTasks">最大并发任务数</label>
                 <input type="number" id="edit-agent-max-tasks" value="3">
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('modal-edit-agent')">取消</button>
-                <button class="btn btn-primary" onclick="saveAgent()">保存</button>
+                <button class="btn btn-secondary" onclick="closeModal('modal-edit-agent')" data-i18n="btn.cancel">取消</button>
+                <button class="btn btn-primary" onclick="saveAgent()" data-i18n="btn.save">保存</button>
             </div>
         </div>
     </div>
@@ -741,13 +895,13 @@
     <div id="modal-confirm" class="modal">
         <div class="modal-content" style="width: 400px;">
             <div class="modal-header">
-                <h2 class="modal-title" id="confirm-title">确认操作</h2>
+                <h2 class="modal-title" id="confirm-title" data-i18n="modal.confirm">确认操作</h2>
                 <button class="modal-close" onclick="closeModal('modal-confirm')">&times;</button>
             </div>
             <p id="confirm-message" style="margin-bottom: 24px; color: var(--text-muted);">确定要执行此操作吗？</p>
             <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('modal-confirm')">取消</button>
-                <button class="btn btn-danger" id="confirm-btn" onclick="confirmAction()">确认</button>
+                <button class="btn btn-secondary" onclick="closeModal('modal-confirm')" data-i18n="btn.cancel">取消</button>
+                <button class="btn btn-danger" id="confirm-btn" onclick="confirmAction()" data-i18n="btn.confirm">确认</button>
             </div>
         </div>
     </div>
@@ -778,92 +932,158 @@
         function closeModal(id) { document.getElementById(id).classList.remove('show'); }
 
         // Agent functions
-        function loadAgents() {
-            const container = document.getElementById('agent-list');
-            const agents = getAgentsData();
-            container.innerHTML = agents.map(agent => `
-                <div class="agent-card">
-                    <div class="agent-info">
-                        <div class="agent-avatar">${agent.name[0]}</div>
-                        <div>
-                            <div class="agent-name">${agent.name}</div>
-                            <div class="agent-type">${agent.type} · ${agent.capabilities.join(', ')}</div>
+        async function loadAgents() {
+            try {
+                const res = await fetch('/api/agents');
+                const data = await res.json();
+                const container = document.getElementById('agent-list');
+                const agents = data.agents || [];
+                container.innerHTML = agents.length > 0 ? agents.map(agent => `
+                    <div class="agent-card">
+                        <div class="agent-info">
+                            <div class="agent-avatar">${agent.name[0]}</div>
+                            <div>
+                                <div class="agent-name">${agent.name}</div>
+                                <div class="agent-type">
+                                    ${agent.type}
+                                    ${(agent.capabilities || []).map(c => `<span class="badge badge-primary" style="margin-right: 4px;">${c}</span>`).join('')}
+                                    ${agent.ai_provider ? `<span class="badge badge-success" style="margin-left: 4px;">🤖 ${agent.ai_provider}${agent.ai_model ? '/' + agent.ai_model.split('-')[0] : ''}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <button class="btn btn-secondary btn-sm" onclick="editAgent('${agent.agent_id}')">✏️</button>
+                            <label class="toggle">
+                                <input type="checkbox" ${agent.enabled ? 'checked' : ''} onchange="toggleAgent('${agent.agent_id}', this.checked)">
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <button class="btn btn-danger btn-sm" onclick="deleteAgent('${agent.agent_id}')">🗑️</button>
                         </div>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <button class="btn btn-secondary btn-sm" onclick="editAgent('${agent.id}')">✏️</button>
-                        <label class="toggle">
-                            <input type="checkbox" ${agent.enabled ? 'checked' : ''} onchange="toggleAgent('${agent.id}', this.checked)">
-                            <span class="toggle-slider"></span>
-                        </label>
-                        <button class="btn btn-danger btn-sm" onclick="deleteAgent('${agent.id}')">🗑️</button>
-                    </div>
-                </div>
-            `).join('');
+                `).join('') : '<div style="padding: 40px; text-align: center; color: var(--text-muted);">暂无Agent</div>';
+            } catch (e) {
+                console.error('Error loading agents:', e);
+            }
         }
 
         function getAgentsData() {
-            return [
-                { id: 'worker_1', name: '分析Agent', type: 'analysis', capabilities: ['analysis'], enabled: true },
-                { id: 'worker_2', name: '研究Agent', type: 'research', capabilities: ['research'], enabled: true },
-                { id: 'worker_3', name: '编码Agent', type: 'coding', capabilities: ['coding'], enabled: true },
-                { id: 'worker_4', name: '设计Agent', type: 'design', capabilities: ['design'], enabled: false },
-                { id: 'worker_5', name: '数据Agent', type: 'data', capabilities: ['data'], enabled: true }
-            ];
+            return agentsCache;
         }
 
-        function addAgent() {
+        async function addAgent() {
             const id = document.getElementById('agent-id').value;
             const name = document.getElementById('agent-name').value;
             const type = document.getElementById('agent-type').value;
             const caps = document.getElementById('agent-capabilities').value.split(',').map(s => s.trim());
-            const maxTasks = document.getElementById('agent-max-tasks').value;
-            alert('Agent ' + name + ' 已添加!');
-            closeModal('modal-add-agent');
-            loadAgents();
+            const aiProvider = document.getElementById('agent-ai-provider').value;
+            const aiModel = document.getElementById('agent-ai-model').value;
+            const aiApiKey = document.getElementById('agent-ai-api-key').value;
+
+            try {
+                const res = await fetch('/api/agents/add', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        agent_id: id,
+                        name,
+                        type,
+                        capabilities: caps,
+                        ai_provider: aiProvider || null,
+                        ai_model: aiModel || null,
+                        ai_api_key: aiApiKey || null
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    const aiInfo = data.ai_provider ? ` (${data.ai_provider}/${data.ai_model || 'default'})` : '';
+                    showToast('Agent ' + name + ' 已添加!' + aiInfo, 'success');
+                    closeModal('modal-add-agent');
+                    loadAgents();
+                }
+            } catch (e) {
+                showToast('添加失败', 'error');
+            }
         }
 
-        function toggleAgent(id, enabled) {
-            console.log('Toggle agent:', id, enabled);
+        async function toggleAgent(id, enabled) {
+            try {
+                await fetch('/api/agents/toggle', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({agent_id: id, enabled})
+                });
+                showToast(enabled ? 'Agent已启用' : 'Agent已禁用', 'info');
+            } catch (e) {
+                showToast('操作失败', 'error');
+            }
         }
 
-        function deleteAgent(id) {
+        async function deleteAgent(id) {
             if (confirm('确定要删除这个Agent吗?')) {
-                alert('Agent 已删除');
-                loadAgents();
+                try {
+                    await fetch('/api/agents/delete', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({agent_id: id})
+                    });
+                    showToast('Agent已删除', 'warning');
+                    loadAgents();
+                } catch (e) {
+                    showToast('删除失败', 'error');
+                }
             }
         }
 
         // Task functions
         let currentTaskFilter = 'all';
-        let allTasks = [
-            { id: 'task_abc123', type: 'analysis', priority: 1, status: 'completed', worker: 'worker_1', created: '2分钟前' },
-            { id: 'task_def456', type: 'research', priority: 2, status: 'running', worker: 'worker_2', created: '1分钟前' },
-            { id: 'task_ghi789', type: 'coding', priority: 3, status: 'pending', worker: '-', created: '刚刚' },
-            { id: 'task_jkl012', type: 'design', priority: 2, status: 'failed', worker: 'worker_4', created: '5分钟前' },
-            { id: 'task_mno345', type: 'data', priority: 1, status: 'completed', worker: 'worker_5', created: '10分钟前' }
-        ];
+        let allTasks = [];
+        let currentTaskData = {};
 
-        function loadTasks() {
-            const tasks = currentTaskFilter === 'all'
-                ? allTasks
-                : allTasks.filter(t => t.status === currentTaskFilter);
-            document.getElementById('task-count').textContent = `${tasks.length}个任务`;
-            document.getElementById('task-list').innerHTML = tasks.map(task => `
-                <tr>
-                    <td><input type="checkbox" onchange="toggleTaskSelection('${task.id}')" ${selectedTasks.has(task.id) ? 'checked' : ''}></td>
-                    <td class="tooltip" data-tip="${task.id}">${task.id.substring(0, 8)}...</td>
-                    <td>${task.type}</td>
-                    <td><span class="badge badge-primary">P${task.priority}</span></td>
-                    <td><span class="badge badge-${task.status === 'completed' ? 'success' : task.status === 'failed' ? 'danger' : 'warning'}">${task.status}</span></td>
-                    <td>${task.worker || '-'}</td>
-                    <td>${task.created}</td>
-                    <td>
-                        <button class="btn btn-secondary btn-sm" onclick="viewTask('${task.id}')">👁️</button>
-                        ${task.status === 'failed' ? '<button class="btn btn-primary btn-sm" onclick="retrySingleTask(\'' + task.id + '\')">🔄</button>' : ''}
-                    </td>
-                </tr>
-            `).join('');
+        async function loadTasks() {
+            try {
+                const res = await fetch('/api/tasks');
+                const data = await res.json();
+                allTasks = (data.tasks || []).map(t => ({
+                    id: t.task_id,
+                    type: t.task_type,
+                    priority: t.priority,
+                    status: t.status,
+                    worker: t.assigned_worker || '-',
+                    created: formatTime(t.created_at)
+                }));
+                currentTaskData = {};
+                allTasks.forEach(t => currentTaskData[t.id] = t);
+
+                const tasks = currentTaskFilter === 'all'
+                    ? allTasks
+                    : allTasks.filter(t => t.status === currentTaskFilter);
+                document.getElementById('task-count').textContent = `${tasks.length}个任务`;
+                document.getElementById('task-list').innerHTML = tasks.length > 0 ? tasks.map(task => `
+                    <tr>
+                        <td><input type="checkbox" onchange="toggleTaskSelection('${task.id}')" ${selectedTasks.has(task.id) ? 'checked' : ''}></td>
+                        <td class="tooltip" data-tip="${task.id}">${task.id.substring(0, 8)}...</td>
+                        <td>${task.type}</td>
+                        <td><span class="badge badge-primary">P${task.priority}</span></td>
+                        <td><span class="badge badge-${task.status === 'completed' ? 'success' : task.status === 'failed' ? 'danger' : task.status === 'running' ? 'warning' : 'primary'}">${task.status}</span></td>
+                        <td>${task.worker}</td>
+                        <td>${task.created}</td>
+                        <td>
+                            <button class="btn btn-secondary btn-sm" onclick="viewTask('${task.id}')">👁️</button>
+                            ${task.status === 'failed' ? '<button class="btn btn-primary btn-sm" onclick="retrySingleTask(\'' + task.id + '\')">🔄</button>' : ''}
+                        </td>
+                    </tr>
+                `).join('') : '<tr><td colspan="8" style="text-align: center; padding: 40px; color: var(--text-muted);">暂无任务</td></tr>';
+            } catch (e) {
+                console.error('Error loading tasks:', e);
+            }
+        }
+
+        function formatTime(timestamp) {
+            if (!timestamp) return '刚刚';
+            const diff = Date.now() / 1000 - timestamp;
+            if (diff < 60) return '刚刚';
+            if (diff < 3600) return Math.floor(diff / 60) + '分钟前';
+            return Math.floor(diff / 3600) + '小时前';
         }
 
         function filterTaskStatus(filter) {
@@ -891,17 +1111,31 @@
             return allTasks;
         }
 
-        function submitTask() {
+        async function submitTask() {
             const type = document.getElementById('task-type').value;
             const data = document.getElementById('task-data').value;
-            const priority = document.getElementById('task-priority').value;
-            alert('任务已提交: ' + type);
-            closeModal('modal-submit-task');
-            loadTasks();
+            const priority = parseInt(document.getElementById('task-priority').value);
+
+            try {
+                const taskData = JSON.parse(data || '{}');
+                const res = await fetch('/api/tasks/submit', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({type, data: taskData, priority})
+                });
+                const result = await res.json();
+                if (result.success) {
+                    showToast('任务已提交: ' + type + ' (ID: ' + result.task_id.substring(0, 8) + '...)', 'success');
+                    closeModal('modal-submit-task');
+                    loadTasks();
+                }
+            } catch (e) {
+                showToast('任务提交失败', 'error');
+            }
         }
 
         function viewTask(id) {
-            const task = getTasksData().find(t => t.id === id) || {
+            const task = currentTaskData[id] || {
                 id: id,
                 type: 'analysis',
                 priority: 2,
@@ -914,9 +1148,9 @@
             document.getElementById('view-task-priority').innerHTML = `<span class="badge badge-primary">P${task.priority}</span>`;
             document.getElementById('view-task-status').innerHTML = `<span class="badge badge-${task.status === 'completed' ? 'success' : task.status === 'failed' ? 'danger' : 'warning'}">${task.status}</span>`;
             document.getElementById('view-task-worker').textContent = task.worker || '-';
-            document.getElementById('view-task-duration').textContent = '12s';
-            document.getElementById('view-task-data').textContent = JSON.stringify({"query": "sales data"}, null, 2);
-            document.getElementById('view-task-result').textContent = JSON.stringify({"result": "分析完成", "status": "success"}, null, 2);
+            document.getElementById('view-task-duration').textContent = '-';
+            document.getElementById('view-task-data').textContent = JSON.stringify({"query": "task data"}, null, 2);
+            document.getElementById('view-task-result').textContent = '-';
             document.getElementById('modal-view-task').classList.add('show');
         }
 
@@ -943,16 +1177,54 @@
             closeModal('modal-confirm');
         }
 
-        function editAgent(id) {
-            const agent = getAgentsData().find(a => a.id === id);
-            if (!agent) return;
-            document.getElementById('edit-agent-id').value = id;
-            document.getElementById('edit-agent-name').value = agent.name;
-            document.getElementById('edit-agent-type').value = agent.type;
-            document.getElementById('edit-agent-capabilities').value = agent.capabilities.join(', ');
-            document.getElementById('edit-agent-timeout').value = '300';
-            document.getElementById('edit-agent-max-tasks').value = '3';
-            document.getElementById('modal-edit-agent').classList.add('show');
+        // Helper function to update model placeholder based on provider
+        function updateModelPlaceholder() {
+            const provider = document.getElementById('agent-ai-provider').value;
+            const modelInput = document.getElementById('agent-ai-model');
+            const apiKeyInput = document.getElementById('agent-ai-api-key');
+
+            const modelPlaceholders = {
+                'openai': 'gpt-4o, gpt-4, gpt-4-turbo',
+                'anthropic': 'claude-3-5-sonnet, claude-3-opus, claude-3-haiku',
+                'minimax': 'abab6.5s-chat, abab5.5s-chat',
+                'deepseek': 'deepseek-chat, deepseek-coder',
+                'zhipu': 'glm-4, glm-4-flash, glm-3-turbo',
+                'ollama': 'llama3, mistral, codellama'
+            };
+
+            const apiKeyPlaceholders = {
+                'openai': 'sk-...',
+                'anthropic': 'sk-ant-...',
+                'minimax': 'MTK...',
+                'deepseek': 'sk-...',
+                'zhipu': 'your-zhipu-api-key',
+                'ollama': '不需要API Key (本地)'
+            };
+
+            modelInput.placeholder = modelPlaceholders[provider] || '选择提供商后查看建议模型';
+            apiKeyInput.placeholder = apiKeyPlaceholders[provider] || 'sk-... (可选)';
+        }
+
+        // Edit Agent
+        let agentsCache = [];
+
+        async function editAgent(id) {
+            try {
+                const res = await fetch('/api/agents');
+                const data = await res.json();
+                agentsCache = data.agents || [];
+                const agent = agentsCache.find(a => a.agent_id === id);
+                if (!agent) return;
+                document.getElementById('edit-agent-id').value = id;
+                document.getElementById('edit-agent-name').value = agent.name;
+                document.getElementById('edit-agent-type').value = agent.type;
+                document.getElementById('edit-agent-capabilities').value = (agent.capabilities || []).join(', ');
+                document.getElementById('edit-agent-timeout').value = '300';
+                document.getElementById('edit-agent-max-tasks').value = '3';
+                document.getElementById('modal-edit-agent').classList.add('show');
+            } catch (e) {
+                showToast('获取Agent信息失败', 'error');
+            }
         }
 
         function saveAgent() {
@@ -962,11 +1234,13 @@
         }
 
         // Chat functions
+        let chatSessionId = null;
+
         function handleChatKeypress(e) {
             if (e.key === 'Enter') sendChatMessage();
         }
 
-        function sendChatMessage() {
+        async function sendChatMessage() {
             const input = document.getElementById('chat-input');
             const text = input.value.trim();
             if (!text) return;
@@ -982,18 +1256,43 @@
             input.value = '';
             messages.scrollTop = messages.scrollHeight;
 
-            setTimeout(() => {
+            try {
+                const res = await fetch('/api/ai/chat', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({message: text, session_id: chatSessionId})
+                });
+                const data = await res.json();
+
+                if (data.response) {
+                    chatSessionId = data.session_id;
+                    messages.innerHTML += `
+                        <div class="chat-message agent">
+                            <div>${data.response}</div>
+                            <div class="message-meta">${data.provider || 'AI'} · 刚刚</div>
+                        </div>
+                    `;
+                } else if (data.error) {
+                    messages.innerHTML += `
+                        <div class="chat-message agent">
+                            <div>错误: ${data.error}</div>
+                            <div class="message-meta">系统 · 刚刚</div>
+                        </div>
+                    `;
+                }
+            } catch (e) {
                 messages.innerHTML += `
                     <div class="chat-message agent">
-                        <div>收到: "${text}" - 我会帮你处理这个任务。</div>
-                        <div class="message-meta">Agent · 刚刚</div>
+                        <div>连接失败，请检查AI配置</div>
+                        <div class="message-meta">系统 · 刚刚</div>
                     </div>
                 `;
-                messages.scrollTop = messages.scrollHeight;
-            }, 1000);
+            }
+            messages.scrollTop = messages.scrollHeight;
         }
 
         function clearChat() {
+            chatSessionId = null;
             document.getElementById('chat-messages').innerHTML = `
                 <div class="chat-message agent">
                     <div>对话已清空。有什么我可以帮助你的吗？</div>
@@ -1018,37 +1317,261 @@
             showToast('设置已重置', 'info');
         }
 
-        // Monitoring
-        function loadMonitoring() {
-            document.getElementById('mon-workers-total').textContent = '5';
-            document.getElementById('mon-workers-online').textContent = '3';
-            document.getElementById('mon-tasks-running').textContent = '2';
-            document.getElementById('mon-tasks-completed').textContent = '156';
+        async function saveAISettings() {
+            const provider = document.getElementById('setting-ai-provider').value;
+            const modelSelect = document.getElementById('setting-ai-model-select');
+            const model = modelSelect.value === 'custom'
+                ? document.getElementById('setting-ai-model').value
+                : modelSelect.value;
+            const apiKey = document.getElementById('setting-ai-api-key').value;
+            const baseUrl = document.getElementById('setting-ai-base-url').value;
 
-            document.getElementById('worker-list').innerHTML = `
-                <tr><td>worker_1</td><td>Analysis</td><td><span class="badge badge-success">在线</span></td><td>analysis</td><td>10秒前</td></tr>
-                <tr><td>worker_2</td><td>Research</td><td><span class="badge badge-success">在线</span></td><td>research</td><td>5秒前</td></tr>
-                <tr><td>worker_3</td><td>Coding</td><td><span class="badge badge-success">在线</span></td><td>coding</td><td>8秒前</td></tr>
-                <tr><td>worker_4</td><td>Design</td><td><span class="badge badge-danger">离线</span></td><td>design</td><td>5分钟前</td></tr>
-                <tr><td>worker_5</td><td>Data</td><td><span class="badge badge-success">在线</span></td><td>data</td><td>3秒前</td></tr>
-            `;
+            try {
+                const res = await fetch('/api/ai/configure', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({provider, model, api_key: apiKey, base_url: baseUrl})
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('AI配置已保存!', 'success');
+                    localStorage.setItem('ai_provider', provider);
+                    localStorage.setItem('ai_model', model);
+                }
+            } catch (e) {
+                showToast('AI配置保存失败', 'error');
+            }
+        }
+
+        function updateAIModels() {
+            const provider = document.getElementById('setting-ai-provider').value;
+            const modelSelect = document.getElementById('setting-ai-model-select');
+            const modelInput = document.getElementById('setting-ai-model');
+
+            // Show/hide custom input based on selection
+            if (provider === 'custom') {
+                modelSelect.value = 'custom';
+                modelInput.style.display = 'block';
+                modelInput.placeholder = '输入模型名称';
+            } else {
+                modelInput.style.display = 'none';
+            }
+
+            // Update models dropdown based on provider
+            const optgroups = modelSelect.querySelectorAll('optgroup');
+            optgroups.forEach(og => {
+                if (provider === 'custom') {
+                    og.style.display = 'none';
+                } else {
+                    const label = og.label.toLowerCase();
+                    if ((provider === 'openai' && label !== 'openai') ||
+                        (provider === 'anthropic' && label !== 'anthropic') ||
+                        (provider === 'ollama' && label !== 'ollama') ||
+                        (provider === 'minimax' && label !== 'minimax') ||
+                        (provider === 'deepseek' && label !== 'deepseek') ||
+                        (provider === 'zhipu' && label !== '智谱ai')) {
+                        og.style.display = 'none';
+                    } else {
+                        og.style.display = 'block';
+                    }
+                }
+            });
+
+            // Set default model
+            const defaults = {
+                'openai': 'gpt-4o',
+                'anthropic': 'claude-sonnet-4-20250514',
+                'ollama': 'llama3',
+                'minimax': 'abab6.5s-chat',
+                'deepseek': 'deepseek-chat',
+                'zhipu': 'glm-4',
+                'custom': 'gpt-4o'
+            };
+            modelSelect.value = defaults[provider] || 'gpt-4o';
+            modelInput.value = defaults[provider] || 'gpt-4o';
+        }
+
+        async function testAIConnection() {
+            const provider = document.getElementById('setting-ai-provider').value;
+            const modelSelect = document.getElementById('setting-ai-model-select');
+            const model = modelSelect.value === 'custom'
+                ? document.getElementById('setting-ai-model').value
+                : modelSelect.value;
+            const apiKey = document.getElementById('setting-ai-api-key').value;
+            const baseUrl = document.getElementById('setting-ai-base-url').value;
+
+            showToast('正在测试AI连接...', 'info');
+
+            try {
+                // First save config
+                await fetch('/api/ai/configure', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({provider, model, api_key: apiKey, base_url: baseUrl})
+                });
+
+                // Then test chat
+                const res = await fetch('/api/ai/chat', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({message: 'Hello, please reply with "OK" to confirm connection.'})
+                });
+                const data = await res.json();
+
+                if (data.response) {
+                    showToast('AI连接成功!', 'success');
+                } else if (data.error) {
+                    showToast('AI连接失败: ' + data.error, 'error');
+                }
+            } catch (e) {
+                showToast('AI连接测试失败', 'error');
+            }
+        }
+
+        // Load saved AI config on page load
+        function loadAISettingsFromStorage() {
+            const provider = localStorage.getItem('ai_provider');
+            const model = localStorage.getItem('ai_model');
+            if (provider) document.getElementById('setting-ai-provider').value = provider;
+            if (model) document.getElementById('setting-ai-model').value = model;
+            const telegramToken = localStorage.getItem('telegram_token');
+            if (telegramToken) document.getElementById('setting-telegram-token').value = telegramToken;
+        }
+
+        // Telegram Bot functions
+        async function testTelegram() {
+            const token = document.getElementById('setting-telegram-token').value;
+            if (!token) {
+                showToast('请输入Bot Token', 'warning');
+                return;
+            }
+            showToast('正在测试Telegram Bot...', 'info');
+            try {
+                const res = await fetch('/api/telegram/configure', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({token, action: 'test'})
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Telegram Bot配置成功!', 'success');
+                    document.getElementById('telegram-status').textContent = '已配置';
+                    document.getElementById('telegram-status').className = 'badge badge-success';
+                    localStorage.setItem('telegram_token', token);
+                } else {
+                    showToast('Telegram Bot配置失败: ' + (data.error || '未知错误'), 'error');
+                    document.getElementById('telegram-status').textContent = '配置失败';
+                    document.getElementById('telegram-status').className = 'badge badge-danger';
+                }
+            } catch (e) {
+                showToast('Telegram Bot测试失败', 'error');
+            }
+        }
+
+        async function toggleTelegram() {
+            const token = document.getElementById('setting-telegram-token').value;
+            const btn = document.getElementById('btn-toggle-telegram');
+            const status = document.getElementById('telegram-status');
+
+            if (!token) {
+                showToast('请先配置Bot Token', 'warning');
+                return;
+            }
+
+            const isRunning = btn.textContent.includes('停止');
+
+            if (isRunning) {
+                // Stop Telegram bot
+                try {
+                    const res = await fetch('/api/telegram/stop', { method: 'POST' });
+                    const data = await res.json();
+                    if (data.success) {
+                        showToast('Telegram Bot已停止', 'info');
+                        btn.textContent = currentLang === 'zh' ? '启动Bot' : 'Start Bot';
+                        status.textContent = '已停止';
+                        status.className = 'badge badge-secondary';
+                    }
+                } catch (e) {
+                    showToast('停止失败', 'error');
+                }
+            } else {
+                // Start Telegram bot
+                try {
+                    const res = await fetch('/api/telegram/start', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({token})
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        showToast('Telegram Bot已启动!', 'success');
+                        btn.textContent = currentLang === 'zh' ? '停止Bot' : 'Stop Bot';
+                        status.textContent = '运行中';
+                        status.className = 'badge badge-success';
+                        localStorage.setItem('telegram_token', token);
+                    } else {
+                        showToast('启动失败: ' + (data.error || '未知错误'), 'error');
+                    }
+                } catch (e) {
+                    showToast('启动失败', 'error');
+                }
+            }
+        }
+
+        // Monitoring
+        async function loadMonitoring() {
+            try {
+                const res = await fetch('/api/dashboard');
+                const data = await res.json();
+                document.getElementById('mon-workers-total').textContent = data.workers?.total || 0;
+                document.getElementById('mon-workers-online').textContent = data.workers?.online || 0;
+                document.getElementById('mon-tasks-running').textContent = data.tasks?.running || 0;
+                document.getElementById('mon-tasks-completed').textContent = data.tasks?.completed || 0;
+
+                const workersRes = await fetch('/api/workers');
+                const workersData = await workersRes.json();
+                document.getElementById('worker-list').innerHTML = (workersData.workers || []).map(w => `
+                    <tr>
+                        <td>${w.worker_id}</td>
+                        <td>${w.worker_type || 'Unknown'}</td>
+                        <td><span class="badge badge-${w.status === 'online' ? 'success' : 'danger'}">${w.status === 'online' ? '在线' : '离线'}</span></td>
+                        <td>${(w.capabilities || []).join(', ')}</td>
+                        <td>${w.last_heartbeat ? formatTime(w.last_heartbeat) : '-'}</td>
+                    </tr>
+                `).join('') || '<tr><td colspan="5" style="text-align: center; padding: 20px;">暂无Worker</td></tr>';
+            } catch (e) {
+                console.error('Error loading monitoring:', e);
+            }
         }
 
         // Initial load
-        function loadDashboard() {
-            document.getElementById('stat-agents').textContent = '5';
-            document.getElementById('stat-workers-online').textContent = '3';
-            document.getElementById('stat-tasks-pending').textContent = '2';
-            document.getElementById('stat-tasks-failed').textContent = '1';
-            document.getElementById('worker-status').textContent = '3/5';
+        async function loadDashboard() {
+            try {
+                const res = await fetch('/api/dashboard');
+                const data = await res.json();
+                document.getElementById('stat-agents').textContent = data.agents?.total || 0;
+                document.getElementById('stat-workers-online').textContent = data.workers?.online || 0;
+                document.getElementById('stat-tasks-pending').textContent = data.tasks?.pending || 0;
+                document.getElementById('stat-tasks-failed').textContent = data.tasks?.failed || 0;
+                document.getElementById('worker-status').textContent = `${data.workers?.online || 0}/${data.workers?.total || 0}`;
 
-            document.getElementById('recent-tasks').innerHTML = `
-                <tr><td>task_abc...</td><td>analysis</td><td><span class="badge badge-success">完成</span></td><td>刚刚</td></tr>
-                <tr><td>task_def...</td><td>research</td><td><span class="badge badge-warning">进行中</span></td><td>1分钟前</td></tr>
-                <tr><td>task_ghi...</td><td>coding</td><td><span class="badge badge-primary">待处理</span></td><td>2分钟前</td></tr>
-            `;
+                const tasksRes = await fetch('/api/tasks');
+                const tasksData = await tasksRes.json();
+                const tasks = (tasksData.tasks || []).slice(0, 5).map(t => `
+                    <tr>
+                        <td>${t.task_id.substring(0, 8)}...</td>
+                        <td>${t.task_type}</td>
+                        <td><span class="badge badge-${t.status === 'completed' ? 'success' : t.status === 'failed' ? 'danger' : t.status === 'running' ? 'warning' : 'primary'}">${t.status}</span></td>
+                        <td>${formatTime(t.created_at)}</td>
+                    </tr>
+                `).join('');
+                document.getElementById('recent-tasks').innerHTML = tasks || '<tr><td colspan="4" style="text-align: center; padding: 20px;">暂无任务</td></tr>';
+            } catch (e) {
+                console.error('Error loading dashboard:', e);
+            }
         }
 
+        loadAISettingsFromStorage();
         loadDashboard();
         setInterval(loadDashboard, 30000);
 
@@ -1114,12 +1637,8 @@
             showToast('主题已切换', 'info');
         }
 
-        // Initialize
-        updateNotificationBadge();
-        renderActivityLog();
-        renderActivityPage();
-        startMonitoringRefresh();
-    </script>
+        // Notifications
+        let notifications = [
             { id: '1', title: '任务完成', message: 'task_abc123 已完成', level: 'success', time: '2分钟前', read: false },
             { id: '2', title: 'Worker离线', message: 'worker_4 已断开连接', level: 'warning', time: '5分钟前', read: false },
             { id: '3', title: '新任务', message: '收到新任务 task_def456', level: 'info', time: '1分钟前', read: false },
@@ -1239,6 +1758,348 @@
             }, 3000);
         }
 
+        // Language translations
+        const translations = {
+            zh: {
+                'nav.dashboard': '仪表盘',
+                'nav.agents': 'Agent设置',
+                'nav.tasks': '任务管理',
+                'nav.messages': '消息交流',
+                'nav.monitoring': '系统监控',
+                'nav.settings': '系统设置',
+                'nav.notifications': '通知中心',
+                'nav.activity': '活动日志',
+                'nav.analytics': '数据分析',
+                'nav.admin': '管理员',
+                'dashboard.liveUpdate': '实时更新',
+                'dashboard.agentsTotal': 'Agent总数',
+                'dashboard.workersOnline': '在线Worker',
+                'dashboard.tasksPending': '待处理任务',
+                'dashboard.tasksFailed': '失败任务',
+                'dashboard.recentTasks': '最近任务',
+                'dashboard.systemStatus': '系统状态',
+                'dashboard.activityLog': '活动日志',
+                'status.running': '运行中',
+                'status.normal': '正常',
+                'tasks.search': '搜索任务...',
+                'tasks.count': '个任务',
+                'tasks.all': '全部',
+                'tasks.pending': '待处理',
+                'tasks.running': '进行中',
+                'tasks.completed': '已完成',
+                'tasks.failed': '失败',
+                'tasks.id': '任务ID',
+                'tasks.type': '类型',
+                'tasks.status': '状态',
+                'tasks.priority': '优先级',
+                'tasks.time': '时间',
+                'tasks.action': '操作',
+                'tasks.worker': 'Worker',
+                'tasks.created': '创建时间',
+                'agents.add': '添加Agent',
+                'agents.count': '个Agent',
+                'agents.noData': '暂无Agent',
+                'modal.addAgent': '添加Agent',
+                'modal.editAgent': '编辑Agent',
+                'modal.submitTask': '提交任务',
+                'modal.taskDetails': '任务详情',
+                'modal.confirm': '确认操作',
+                'form.agentId': 'Agent ID',
+                'form.name': '名称',
+                'form.type': '类型',
+                'form.capabilities': '能力 (逗号分隔)',
+                'form.maxTasks': '最大并发任务数',
+                'form.aiProvider': 'AI提供商',
+                'form.aiModel': 'AI模型',
+                'form.aiApiKey': 'API Key',
+                'form.taskType': '任务类型',
+                'form.taskData': '任务数据 (JSON)',
+                'form.priority': '优先级 (1-5, 1最高)',
+                'form.timeout': '超时时间 (秒)',
+                'btn.cancel': '取消',
+                'btn.add': '添加',
+                'btn.save': '保存',
+                'btn.close': '关闭',
+                'btn.retry': '重试',
+                'btn.delete': '删除',
+                'btn.submit': '提交',
+                'chat.placeholder': '输入消息...',
+                'chat.send': '发送',
+                'chat.clear': '清空',
+                'chat.title': '与Agent对话',
+                'chat.welcome': '你好！我是你的AI助手。有什么我可以帮助你的吗？',
+                'chat.cleared': '对话已清空。有什么我可以帮助你的吗？',
+                'monitoring.workersTotal': '总Worker数',
+                'monitoring.online': '在线',
+                'monitoring.running': '运行中',
+                'monitoring.completed': '已完成',
+                'monitoring.workerStatus': 'Worker状态',
+                'monitoring.lastHeartbeat': '最后心跳',
+                'settings.general': '通用设置',
+                'settings.systemName': '系统名称',
+                'settings.systemNameDesc': '显示在界面顶部的名称',
+                'settings.defaultTimeout': '默认超时时间',
+                'settings.defaultTimeoutDesc': '任务执行的默认超时时间(秒)',
+                'settings.maxConcurrent': '最大并发任务数',
+                'settings.maxConcurrentDesc': '每个Worker最大并发任务数',
+                'settings.queueType': '队列类型',
+                'settings.queueTypeDesc': '消息队列的实现类型',
+                'settings.queueMemory': '内存队列',
+                'settings.queueRedis': 'Redis队列',
+                'settings.heartbeatInterval': 'Heartbeat间隔',
+                'settings.heartbeatIntervalDesc': 'Worker心跳检测间隔(秒)',
+                'settings.alerts': '告警设置',
+                'settings.enableAlerts': '启用告警通知',
+                'settings.enableAlertsDesc': '任务失败时发送告警通知',
+                'settings.failThreshold': '失败阈值',
+                'settings.failThresholdDesc': '触发告警的连续失败次数',
+                'settings.aiConfig': 'AI配置',
+                'settings.aiProvider': 'AI提供商',
+                'settings.aiProviderDesc': '选择AI服务提供商',
+                'settings.aiModel': 'AI模型',
+                'settings.aiModelDesc': '例如: gpt-4, claude-3, llama2',
+                'settings.aiApiKey': 'API Key',
+                'settings.aiApiKeyDesc': '输入AI服务的API密钥',
+                'settings.aiBaseUrl': 'API地址',
+                'settings.aiBaseUrlDesc': '自定义API地址(可选)',
+                'settings.aiModelSelect': '选择模型',
+                'settings.aiCustom': '自定义模型',
+                'providers.openai': 'OpenAI',
+                'providers.anthropic': 'Anthropic',
+                'providers.minimax': 'Minimax',
+                'providers.deepseek': 'DeepSeek',
+                'providers.zhipu': '智谱AI',
+                'providers.ollama': 'Ollama (本地)',
+                'providers.custom': '自定义API',
+                'btn.saveAI': '保存AI配置',
+                'btn.testAI': '测试连接',
+                'btn.saveSettings': '保存设置',
+                'btn.reset': '重置',
+                'analytics.title': '数据分析',
+                'analytics.period24h': '过去24小时',
+                'analytics.period7d': '过去7天',
+                'analytics.period30d': '过去30天',
+                'analytics.export': '导出报告',
+                'analytics.totalTasks': '总任务数',
+                'analytics.successRate': '成功率',
+                'analytics.avgDuration': '平均耗时',
+                'analytics.throughput': '吞吐量',
+                'analytics.taskDistribution': '任务类型分布',
+                'analytics.workerPerformance': 'Worker性能对比',
+                'analytics.taskTrend': '任务趋势 (过去7天)',
+                'notifications.title': '通知',
+                'notifications.markAll': '全部已读',
+                'activity.title': '活动日志',
+                'activity.clear': '清空日志',
+                'activity.noData': '暂无活动',
+                'system.version': 'v1.0.0',
+                'system.orchestrator': 'Orchestrator',
+                'system.queue': '消息队列',
+                'system.workerReg': 'Worker注册',
+                'task.viewDetails': '任务详情',
+                'task.taskData': '任务数据',
+                'task.result': '执行结果',
+                'task.duration': '耗时',
+                'task.retry': '重试',
+                'task.cancel': '取消',
+                'msg.addSuccess': '已添加',
+                'msg.enabled': 'Agent已启用',
+                'msg.disabled': 'Agent已禁用',
+                'msg.deleted': 'Agent已删除',
+                'msg.taskSubmit': '任务已提交',
+                'msg.settingsSaved': '设置已保存',
+                'msg.settingsReset': '设置已重置',
+                'msg.confirmDelete': '确定要删除这个Agent吗?',
+                'btn.confirm': '确认',
+                'tasks.bulkCancel': '批量取消',
+                'tasks.submit': '提交任务'
+            },
+            en: {
+                'nav.dashboard': 'Dashboard',
+                'nav.agents': 'Agent Settings',
+                'nav.tasks': 'Task Management',
+                'nav.messages': 'Messages',
+                'nav.monitoring': 'Monitoring',
+                'nav.settings': 'Settings',
+                'nav.notifications': 'Notifications',
+                'nav.activity': 'Activity Log',
+                'nav.analytics': 'Analytics',
+                'nav.admin': 'Admin',
+                'dashboard.liveUpdate': 'Live Update',
+                'dashboard.agentsTotal': 'Total Agents',
+                'dashboard.workersOnline': 'Online Workers',
+                'dashboard.tasksPending': 'Pending Tasks',
+                'dashboard.tasksFailed': 'Failed Tasks',
+                'dashboard.recentTasks': 'Recent Tasks',
+                'dashboard.systemStatus': 'System Status',
+                'dashboard.activityLog': 'Activity Log',
+                'status.running': 'Running',
+                'status.normal': 'Normal',
+                'tasks.search': 'Search tasks...',
+                'tasks.count': 'tasks',
+                'tasks.all': 'All',
+                'tasks.pending': 'Pending',
+                'tasks.running': 'Running',
+                'tasks.completed': 'Completed',
+                'tasks.failed': 'Failed',
+                'tasks.id': 'Task ID',
+                'tasks.type': 'Type',
+                'tasks.status': 'Status',
+                'tasks.priority': 'Priority',
+                'tasks.time': 'Time',
+                'tasks.action': 'Action',
+                'tasks.worker': 'Worker',
+                'tasks.created': 'Created',
+                'agents.add': 'Add Agent',
+                'agents.count': 'agents',
+                'agents.noData': 'No agents',
+                'modal.addAgent': 'Add Agent',
+                'modal.editAgent': 'Edit Agent',
+                'modal.submitTask': 'Submit Task',
+                'modal.taskDetails': 'Task Details',
+                'modal.confirm': 'Confirm',
+                'form.agentId': 'Agent ID',
+                'form.name': 'Name',
+                'form.type': 'Type',
+                'form.capabilities': 'Capabilities (comma separated)',
+                'form.maxTasks': 'Max Concurrent Tasks',
+                'form.aiProvider': 'AI Provider',
+                'form.aiModel': 'AI Model',
+                'form.aiApiKey': 'API Key',
+                'form.taskType': 'Task Type',
+                'form.taskData': 'Task Data (JSON)',
+                'form.priority': 'Priority (1-5, 1 is highest)',
+                'form.timeout': 'Timeout (seconds)',
+                'btn.cancel': 'Cancel',
+                'btn.add': 'Add',
+                'btn.save': 'Save',
+                'btn.close': 'Close',
+                'btn.retry': 'Retry',
+                'btn.delete': 'Delete',
+                'btn.submit': 'Submit',
+                'chat.placeholder': 'Type a message...',
+                'chat.send': 'Send',
+                'chat.clear': 'Clear',
+                'chat.title': 'Chat with Agent',
+                'chat.welcome': 'Hello! I am your AI assistant. How can I help you?',
+                'chat.cleared': 'Chat cleared. How can I help you?',
+                'monitoring.workersTotal': 'Total Workers',
+                'monitoring.online': 'Online',
+                'monitoring.running': 'Running',
+                'monitoring.completed': 'Completed',
+                'monitoring.workerStatus': 'Worker Status',
+                'monitoring.lastHeartbeat': 'Last Heartbeat',
+                'settings.general': 'General',
+                'settings.systemName': 'System Name',
+                'settings.systemNameDesc': 'Name displayed at the top',
+                'settings.defaultTimeout': 'Default Timeout',
+                'settings.defaultTimeoutDesc': 'Default task execution timeout (seconds)',
+                'settings.maxConcurrent': 'Max Concurrent Tasks',
+                'settings.maxConcurrentDesc': 'Max concurrent tasks per worker',
+                'settings.queueType': 'Queue Type',
+                'settings.queueTypeDesc': 'Message queue implementation',
+                'settings.queueMemory': 'Memory Queue',
+                'settings.queueRedis': 'Redis Queue',
+                'settings.heartbeatInterval': 'Heartbeat Interval',
+                'settings.heartbeatIntervalDesc': 'Worker heartbeat check interval (seconds)',
+                'settings.alerts': 'Alert Settings',
+                'settings.enableAlerts': 'Enable Alerts',
+                'settings.enableAlertsDesc': 'Send alerts on task failure',
+                'settings.failThreshold': 'Failure Threshold',
+                'settings.failThresholdDesc': 'Consecutive failures to trigger alert',
+                'settings.aiConfig': 'AI Configuration',
+                'settings.aiProvider': 'AI Provider',
+                'settings.aiProviderDesc': 'Select AI service provider',
+                'settings.aiModel': 'AI Model',
+                'settings.aiModelDesc': 'e.g.: gpt-4, claude-3, llama2',
+                'settings.aiApiKey': 'API Key',
+                'settings.aiApiKeyDesc': 'Enter AI service API key',
+                'settings.aiBaseUrl': 'API URL',
+                'settings.aiBaseUrlDesc': 'Custom API URL (optional)',
+                'settings.aiModelSelect': 'Select Model',
+                'settings.aiCustom': 'Custom Model',
+                'providers.openai': 'OpenAI',
+                'providers.anthropic': 'Anthropic',
+                'providers.minimax': 'Minimax',
+                'providers.deepseek': 'DeepSeek',
+                'providers.zhipu': 'Zhipu AI',
+                'providers.ollama': 'Ollama (Local)',
+                'providers.custom': 'Custom API',
+                'btn.saveAI': 'Save AI Config',
+                'btn.testAI': 'Test Connection',
+                'btn.saveSettings': 'Save Settings',
+                'btn.reset': 'Reset',
+                'analytics.title': 'Analytics',
+                'analytics.period24h': 'Last 24 hours',
+                'analytics.period7d': 'Last 7 days',
+                'analytics.period30d': 'Last 30 days',
+                'analytics.export': 'Export Report',
+                'analytics.totalTasks': 'Total Tasks',
+                'analytics.successRate': 'Success Rate',
+                'analytics.avgDuration': 'Avg Duration',
+                'analytics.throughput': 'Throughput',
+                'analytics.taskDistribution': 'Task Type Distribution',
+                'analytics.workerPerformance': 'Worker Performance',
+                'analytics.taskTrend': 'Task Trend (Last 7 Days)',
+                'notifications.title': 'Notifications',
+                'notifications.markAll': 'Mark All Read',
+                'activity.title': 'Activity Log',
+                'activity.clear': 'Clear Log',
+                'activity.noData': 'No activity',
+                'system.version': 'v1.0.0',
+                'system.orchestrator': 'Orchestrator',
+                'system.queue': 'Message Queue',
+                'system.workerReg': 'Worker Registry',
+                'task.viewDetails': 'View Details',
+                'task.taskData': 'Task Data',
+                'task.result': 'Result',
+                'task.duration': 'Duration',
+                'task.retry': 'Retry',
+                'task.cancel': 'Cancel',
+                'msg.addSuccess': 'added',
+                'msg.enabled': 'Agent enabled',
+                'msg.disabled': 'Agent disabled',
+                'msg.deleted': 'Agent deleted',
+                'msg.taskSubmit': 'Task submitted',
+                'msg.settingsSaved': 'Settings saved',
+                'msg.settingsReset': 'Settings reset',
+                'msg.confirmDelete': 'Are you sure you want to delete this agent?',
+                'btn.confirm': 'Confirm',
+                'tasks.bulkCancel': 'Bulk Cancel',
+                'tasks.submit': 'Submit Task'
+            }
+        };
+
+        let currentLang = 'zh';
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.lang === lang);
+            });
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.dataset.i18n;
+                if (translations[lang] && translations[lang][key]) {
+                    el.textContent = translations[lang][key];
+                }
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.dataset.i18nPlaceholder;
+                if (translations[lang] && translations[lang][key]) {
+                    el.placeholder = translations[lang][key];
+                }
+            });
+            localStorage.setItem('lang', lang);
+        }
+
+        document.querySelectorAll('.lang-btn').forEach(btn => {
+            btn.addEventListener('click', () => setLanguage(btn.dataset.lang));
+        });
+
+        // Load saved language
+        const savedLang = localStorage.getItem('lang');
+        if (savedLang) setLanguage(savedLang);
+
         // Task filtering
         function filterTasks() {
             const search = document.getElementById('task-search').value.toLowerCase();
@@ -1249,6 +2110,7 @@
         updateNotificationBadge();
         renderActivityLog();
         renderActivityPage();
+        startMonitoringRefresh();
     </script>
 </body>
 </html>

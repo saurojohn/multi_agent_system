@@ -86,11 +86,19 @@ python3 examples/telegram_bot_example.py
 # Send /start to your bot on Telegram
 ```
 
-**5. Web管理界面 / Web Admin UI**
+**5. Web管理界面 / Web Admin UI (推荐/Recommended)**
 ```bash
-python3 examples/web_ui_server.py
+python3 examples/launcher.py
 # Open http://localhost:8081/agent_web_ui.html in browser
-# Features: Dashboard, Agent settings, Tasks, Chat, Monitoring, Settings
+# 功能/Features: Dashboard, Agent管理, AI配置, 任务, Chat, Telegram Bot, 设置
+```
+
+**6. Telegram Bot (从Web UI控制/Telegram Bot controllable from Web UI)**
+```bash
+# 启动launcher后，在Web UI设置页面配置Telegram Bot Token
+# After running launcher, configure Bot Token in Web UI Settings page
+python3 examples/launcher.py --token YOUR_BOT_TOKEN
+# 或/or: TELEGRAM_BOT_TOKEN=XXX python3 examples/launcher.py --token-env
 ```
 
 ---
@@ -183,15 +191,48 @@ stop_bot()  # 如果使用Telegram Bot
 
 ## Worker 类型 / Worker Types
 
-在 `api_server.py` 中预定义了5种 Worker / 5 Worker types predefined in api_server.py:
+在 `launcher.py` 中预定义了3种 Worker / 3 Worker types predefined in launcher.py:
 
 | Worker ID | 类型/Type | 能力/Capability | 说明/Description |
 |-----------|-----------|------------------|-------------------|
 | worker_1 | Analysis | analysis | 数据分析/Data Analysis |
 | worker_2 | Research | research | 市场研究/Market Research |
 | worker_3 | Coding | coding | 代码编写/Code Writing |
-| worker_4 | Design | design | UI设计/UI Design |
-| worker_5 | Data | data | 数据处理/Data Processing |
+
+**每个Worker可配置独立AI模型 / Each Worker Can Use Different AI Model:**
+```python
+worker = WorkerAgent(
+    worker_id="worker_1",
+    worker_type="Analysis",
+    capabilities=["analysis"],
+    mq=mq
+)
+
+# 创建AI handler并注册
+from multi_agent_system.common.ai_agent import create_ai_handler, AIConfig, AIProvider
+
+# worker_1 使用 OpenAI GPT-4
+ai_config_1 = AIConfig(provider=AIProvider.OPENAI, model="gpt-4", api_key="sk-...")
+worker.register_handler("analysis", create_ai_handler(ai_config_1))
+
+# worker_2 使用 Anthropic Claude
+ai_config_2 = AIConfig(provider=AIProvider.ANTHROPIC, model="claude-3-opus", api_key="sk-ant-...")
+worker.register_handler("research", create_ai_handler(ai_config_2))
+
+# worker_3 使用 DeepSeek Coder
+ai_config_3 = AIConfig(provider=AIProvider.DEEPSEEK, model="deepseek-coder", api_key="sk-...")
+worker.register_handler("coding", create_ai_handler(ai_config_3))
+
+worker.start()
+```
+
+**支持的AI提供商 / Supported AI Providers:**
+- OpenAI (gpt-4, gpt-4o, gpt-4-turbo)
+- Anthropic (claude-3-5-sonnet, claude-3-opus, claude-3-haiku)
+- Minimax (abab6.5s-chat, abab5.5s-chat)
+- DeepSeek (deepseek-chat, deepseek-coder)
+- 智谱AI/Zhipu (glm-4, glm-4-flash)
+- Ollama (llama3, mistral - 本地/Local)
 
 ---
 
@@ -344,6 +385,7 @@ multi_agent_system/
 |------|------|
 | telegram_bot.py | Telegram机器人 |
 | web_ui.py | Web管理界面 |
+| ai_agent.py | AI模型集成 (OpenAI/Anthropic/Minimax/DeepSeek/智谱AI/Ollama) |
 | service_mesh.py | 服务网格 |
 
 ---
