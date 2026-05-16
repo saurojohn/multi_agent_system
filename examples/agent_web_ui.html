@@ -1301,17 +1301,29 @@
 
         // Settings functions
         function saveSettings() {
+            // Save general settings
+            localStorage.setItem('setting-name', document.getElementById('setting-name').value);
+            localStorage.setItem('setting-timeout', document.getElementById('setting-timeout').value);
+            localStorage.setItem('setting-max-tasks', document.getElementById('setting-max-tasks').value);
+            localStorage.setItem('setting-queue-type', document.getElementById('setting-queue-type').value);
+            localStorage.setItem('setting-heartbeat', document.getElementById('setting-heartbeat').value);
+            localStorage.setItem('setting-fail-threshold', document.getElementById('setting-fail-threshold').value);
             showToast('设置已保存!', 'success');
         }
 
         function resetSettings() {
-            document.getElementById('setting-name').value = 'Multi-Agent System';
-            document.getElementById('setting-timeout').value = '300';
-            document.getElementById('setting-max-tasks').value = '5';
-            document.getElementById('setting-queue-type').value = 'memory';
-            document.getElementById('setting-heartbeat').value = '30';
-            document.getElementById('setting-alerts').checked = true;
-            document.getElementById('setting-fail-threshold').value = '3';
+            const defaultSettings = {
+                'setting-name': 'Multi-Agent System',
+                'setting-timeout': '300',
+                'setting-max-tasks': '5',
+                'setting-queue-type': 'memory',
+                'setting-heartbeat': '30',
+                'setting-fail-threshold': '3'
+            };
+            for (const [id, value] of Object.entries(defaultSettings)) {
+                document.getElementById(id).value = value;
+                localStorage.removeItem(id);
+            }
             showToast('设置已重置', 'info');
         }
 
@@ -1341,7 +1353,7 @@
             }
         }
 
-        function updateAIModels() {
+        function updateAIModels(savedModel = null) {
             const provider = document.getElementById('setting-ai-provider').value;
             const modelSelect = document.getElementById('setting-ai-model-select');
             const modelInput = document.getElementById('setting-ai-model');
@@ -1375,18 +1387,28 @@
                 }
             });
 
+            // Use saved model if provided and exists in dropdown, otherwise use default
+            if (savedModel) {
+                const option = modelSelect.querySelector(`option[value="${savedModel}"]`);
+                if (option) {
+                    modelSelect.value = savedModel;
+                    modelInput.style.display = 'none';
+                    return;
+                }
+            }
+
             // Set default model
             const defaults = {
                 'openai': 'gpt-4o',
-                'anthropic': 'claude-sonnet-4-20250514',
-                'ollama': 'llama3',
-                'minimax': 'abab6.5s-chat',
-                'deepseek': 'deepseek-chat',
-                'zhipu': 'glm-4',
-                'custom': 'gpt-4o'
+                'anthropic': 'claude-opus-4',
+                'ollama': 'llama3.3',
+                'minimax': 'MiniMax-M2.7',
+                'deepseek': 'deepseek-v3',
+                'zhipu': 'glm-4-plus',
+                'custom': ''
             };
             modelSelect.value = defaults[provider] || 'gpt-4o';
-            modelInput.value = defaults[provider] || 'gpt-4o';
+            modelInput.value = '';
         }
 
         async function testAIConnection() {
@@ -1430,10 +1452,41 @@
         function loadAISettingsFromStorage() {
             const provider = localStorage.getItem('ai_provider');
             const model = localStorage.getItem('ai_model');
-            if (provider) document.getElementById('setting-ai-provider').value = provider;
-            if (model) document.getElementById('setting-ai-model').value = model;
+            if (provider) {
+                document.getElementById('setting-ai-provider').value = provider;
+                updateAIModels();
+            }
+            if (model) {
+                const modelSelect = document.getElementById('setting-ai-model-select');
+                const modelInput = document.getElementById('setting-ai-model');
+                // Check if model exists in dropdown
+                const option = modelSelect.querySelector(`option[value="${model}"]`);
+                if (option) {
+                    modelSelect.value = model;
+                    modelInput.style.display = 'none';
+                } else {
+                    modelSelect.value = 'custom';
+                    modelInput.value = model;
+                    modelInput.style.display = 'block';
+                }
+            }
+            // Load Telegram token
             const telegramToken = localStorage.getItem('telegram_token');
             if (telegramToken) document.getElementById('setting-telegram-token').value = telegramToken;
+
+            // Load general settings
+            const savedName = localStorage.getItem('setting-name');
+            if (savedName) document.getElementById('setting-name').value = savedName;
+            const savedTimeout = localStorage.getItem('setting-timeout');
+            if (savedTimeout) document.getElementById('setting-timeout').value = savedTimeout;
+            const savedMaxTasks = localStorage.getItem('setting-max-tasks');
+            if (savedMaxTasks) document.getElementById('setting-max-tasks').value = savedMaxTasks;
+            const savedQueueType = localStorage.getItem('setting-queue-type');
+            if (savedQueueType) document.getElementById('setting-queue-type').value = savedQueueType;
+            const savedHeartbeat = localStorage.getItem('setting-heartbeat');
+            if (savedHeartbeat) document.getElementById('setting-heartbeat').value = savedHeartbeat;
+            const savedFailThreshold = localStorage.getItem('setting-fail-threshold');
+            if (savedFailThreshold) document.getElementById('setting-fail-threshold').value = savedFailThreshold;
         }
 
         // Telegram Bot functions
