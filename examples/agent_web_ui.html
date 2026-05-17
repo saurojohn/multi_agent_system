@@ -1336,6 +1336,12 @@
             const apiKey = document.getElementById('setting-ai-api-key').value;
             const baseUrl = document.getElementById('setting-ai-base-url').value;
 
+            // Save to localStorage FIRST so it's available immediately
+            localStorage.setItem('ai_provider', provider);
+            localStorage.setItem('ai_model', model);
+            localStorage.setItem('ai_api_key', apiKey);
+            localStorage.setItem('ai_base_url', baseUrl);
+
             try {
                 const res = await fetch('/api/ai/configure', {
                     method: 'POST',
@@ -1345,8 +1351,8 @@
                 const data = await res.json();
                 if (data.success) {
                     showToast('AI配置已保存!', 'success');
-                    localStorage.setItem('ai_provider', provider);
-                    localStorage.setItem('ai_model', model);
+                } else {
+                    showToast('AI配置保存失败: ' + (data.message || '未知错误'), 'error');
                 }
             } catch (e) {
                 showToast('AI配置保存失败', 'error');
@@ -1452,6 +1458,9 @@
         function loadAISettingsFromStorage() {
             const provider = localStorage.getItem('ai_provider');
             const model = localStorage.getItem('ai_model');
+            const apiKey = localStorage.getItem('ai_api_key');
+            const baseUrl = localStorage.getItem('ai_base_url');
+
             if (provider) {
                 document.getElementById('setting-ai-provider').value = provider;
                 updateAIModels();
@@ -1469,6 +1478,12 @@
                     modelInput.value = model;
                     modelInput.style.display = 'block';
                 }
+            }
+            if (apiKey) {
+                document.getElementById('setting-ai-api-key').value = apiKey;
+            }
+            if (baseUrl) {
+                document.getElementById('setting-ai-base-url').value = baseUrl;
             }
             // Load Telegram token
             const telegramToken = localStorage.getItem('telegram_token');
